@@ -1,0 +1,182 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<meta charset="utf-8"/>
+	<title></title>
+	<style type="text/css">
+        body {
+            font-family: SimSun !important;
+        }
+
+        p {
+            margin: 0px;
+        }
+
+        footer {
+            color: #333;
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            margin-right: 5%;
+            margin-top: 1.2rem;
+            text-align: right;
+        }
+
+        table,
+        td {
+            border-collapse: collapse;
+            text-align: center;
+            padding: 5px;
+        }
+
+        table, th {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+<p style="color: #000; font-size: 1.8rem; height: 32px; text-align: center;">
+	@Model.Title
+</p>
+<p style="color: #333; font-size: 1.2rem; margin-left: 5%; margin-top: 1%;">
+	<text>Numéro de commande：@Model.Data.OrderId</text>
+	<text style="float: right;margin-right: 6%;">Date de transaction：@Model.Data.CreatedOn.ToString("dd/MM/yyyy HH:mm:ss")</text>
+</p>
+<h3 style="margin-left: 5%; margin-top: 1%;">Info client</h3>
+<table width="90%" style="margin-left: 5%; margin-top: 1%;">
+	<thead>
+	<tr>
+		<th>Entreprise</th>
+		<th>Numéro de téléphone</th>
+		<th>Compte</th>
+		<th>N° TVA</th>
+
+	</tr>
+	</thead>
+	<tbody>
+	<tr>
+		<td>@Model.Data.Entreprise</td>
+		<td>@Model.Data.PhoneNumber</td>
+		<td>@Model.Data.Username</td>
+		<td>@Model.Data.Siret</td>
+	</tr>
+	</tbody>
+</table>
+<h3 style="margin-left: 5%; margin-top: 1%;">Produits</h3>
+<table width="90%" style="margin-left: 5%; margin-top: 1%;">
+	<thead>
+	<tr>
+		<th>Photo</th>
+		<th>Référence</th>
+		<th>Nom de produit</th>
+		<th>Colisage</th>
+		<th>Nombre de colis</th>
+		<th>QT CDEE</th>
+		<th>P.U. HT</th>
+		<th>Montant HT</th>
+	</tr>
+	</thead>
+	<tbody>
+	@foreach (var item in Model.Data.ProductList)
+	{
+		string totalPrice = (item.Price * item.Quantity * item.Colissage).ToString("0.00");
+		double TotalQuantity = item.Quantity * item.Colissage;
+		var style = item.IsModifiedPriceOrBox == true ? "color:Red" : null;
+		var quantityStyle = item.QuantityPerParcel != null ? "color:Red" : null;
+		<tr style="@style">
+			<td>
+				<img src="@item.PhotoPath" width="70"/>
+			</td>
+			<td>@item.Code</td>
+			<td>@item.Label</td>
+			<td>
+				<span style="@quantityStyle">
+					@item.Colissage
+				</span>
+				@if (item.QuantityPerParcel != null)
+				{
+					<span>(@item.QuantityPerParcel)</span>
+				}
+			</td>
+			<td>
+				@item.Quantity
+			</td>
+			<td>@TotalQuantity </td>
+			<td>@item.Price €</td>
+			<td>@totalPrice €</td>
+
+		</tr>
+	}
+
+	<tr style="border: solid 1px;">
+		<td colspan="7" style="text-align: left;padding-left: 7%;">Total HT</td>
+		<td>@Model.Data.TotalPriceWithoutTax €</td>
+	</tr>
+
+	<tr style="border: solid 1px;">
+		<td colspan="7" style="text-align: left;padding-left: 7%;">Tx TVA</td>
+		<td>@Model.Data.TaxRate %</td>
+	</tr>
+
+	<tr style="border: solid 1px;">
+		<td colspan="7" style="text-align: left;padding-left: 7%;">TVA</td>
+		<td>@Model.Data.Tax €</td>
+	</tr>
+
+	<tr style="border: solid 1px;">
+		<td colspan="7" style="text-align: left;padding-left: 7%;">TOTAL A PAYER</td>
+		<td>@Model.Data.TotalPrice €</td>
+	</tr>
+
+	</tbody>
+</table>
+<div style="margin-left: 5%; margin-top: 1%;width:90%; ">
+	<div style="width:48%;border: 1px solid; float:left; height:160px;padding-left:5px;">
+		<h3>Addresse de facturation</h3>
+		<div class="address-card__name">@Model.Data.Entreprise</div>
+		@*@Model.Data.FacturationAddress.ContactFirstName  @Model.Data.FacturationAddress.ContactLastName*@
+		<div class="address-card__row">
+
+
+			@Model.Data.FacturationAddress.FirstLineAddress <br>
+			@Model.Data.FacturationAddress.SecondLineAddress<br>
+			@Model.Data.FacturationAddress.ZipCode, @Model.Data.FacturationAddress.City, @Model.Data.FacturationAddress.Country
+		</div>
+		<div class="address-card__row">
+			<div class="address-card__row-title">Numéro de téléphone: @Model.Data.FacturationAddress.ContactTelephone </div>
+		</div>
+
+	</div>
+	<div style="width:48%;border: 1px solid; float:right; height:160px;padding-left:5px;">
+		<h3>Addresse de livraison</h3>
+		<div class="address-card__name">@Model.Data.Entreprise</div>
+		<div class="address-card__row">
+
+
+			@Model.Data.ShipmentAddress.FirstLineAddress <br>
+			@Model.Data.ShipmentAddress.SecondLineAddress <br>
+			@Model.Data.ShipmentAddress.ZipCode, @Model.Data.ShipmentAddress.City, @Model.Data.ShipmentAddress.Country
+		</div>
+		<div class="address-card__row">
+			<div class="address-card__row-title">Numéro de téléphone: @Model.Data.ShipmentAddress.ContactTelephone</div>
+		</div>
+
+	</div>
+</div>
+
+<div style="margin-left: 5%; margin-top: 1%;width:90%; ">
+	<div style="width:48%;border: 1px solid; float:left; height:160px;padding-left:5px; margin-top:5px;">
+		<h3>Message de client</h3>
+		@*@Model.Data.FacturationAddress.ContactFirstName  @Model.Data.FacturationAddress.ContactLastName*@
+		<div class="address-card__row">
+			@Model.Data.ClientRemark
+		</div>
+
+	</div>
+
+</div>
+
+</body>
+</html>

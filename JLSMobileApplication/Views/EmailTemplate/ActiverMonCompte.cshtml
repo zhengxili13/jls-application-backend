@@ -1,0 +1,75 @@
+﻿@{
+	ViewBag.Title = "Félicitation! Vous avez bien créé votre compte";
+	Layout = "~/Views/EmailTemplate/_Layout.cshtml";
+}
+
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
+	<tbody>
+
+	<tr>
+		<td bgcolor="#ffffff" align="left" style="padding: 20px 30px 40px 30px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 400; line-height: 25px;">
+			<p style="margin: 0;">
+				Chère cliente, cher client @Model.Username,
+			</p>
+			<p style="margin: 0;">
+				Merci de votre inscription.
+				Veuiller cliquer le boutton pour activer votre compte.
+				Vous n'allez pas demander de login sur votre compte, cette action est uniquement pour vérifier l'existant de votre addresse mail
+			</p>
+		</td>
+	</tr>
+	<tr>
+		<td bgcolor="#ffffff" align="left">
+			<table width="100%" border="0" cellspacing="0" cellpadding="0">
+				<tbody>
+				<tr>
+					<td bgcolor="#ffffff" align="center" style="padding: 20px 30px 60px 30px;">
+						<table border="0" cellspacing="0" cellpadding="0">
+							<tbody>
+							<tr>
+								<td align="center" style="border-radius: 3px;background-color: #c33;" bgcolor="#FFA73B">
+									<a href="@Model.ConfirmationLink" target="_blank" style="font-size: 20px;font-family: Helvetica, Arial, sans-serif;color: #ffffff;text-decoration: none;color: #ffffff;text-decoration: none;padding: 15px 25px;border-radius: 2px;border: 1px solid #c33;display: inline-block;">
+										Activer votre compte
+									</a>
+								</td>
+							</tr>
+							</tbody>
+						</table>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</td>
+	</tr>
+	<tr>
+		<td bgcolor="#ffffff" align="left" style="padding: 0px 30px 0px 30px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 400; line-height: 25px;">
+			<p style="margin: 0;">Si le button ne fonctionne pas, merci de cliquer sur le lien au dessous:</p>
+		</td>
+	</tr> <!-- COPY -->
+
+	<tr>
+		<td bgcolor="#ffffff" align="left" style="padding: 20px 30px 20px 30px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 400; line-height: 25px;">
+			<p style="margin: 0;">
+				<a href="@Model.ConfirmationLink" target="_blank" style="color: #c33;">@Model.ConfirmationLink</a>
+			</p>
+		</td>
+	</tr>
+
+	<tr>
+		<td bgcolor="#ffffff" align="left" style="padding: 20px 30px 20px 30px; color: #666666; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 400; line-height: 25px;">
+			<b>Votre compte est valable pour notre site et notre application JLS IMPORT </b>
+
+			<p>
+				<b>Addresse mail:</b> @Model.Username
+				<br/>
+				<b>Entreprise:</b> @Model.Entreprise
+				<br/>
+				<b>Numéro de téléphone:</b> @Model.Phone
+			</p>
+		</td>
+	</tr>
+
+	</tbody>
+
+</table>

@@ -1,0 +1,17 @@
+/JLSDataAccess/obj
+/JLSMobileApplication/bin
+/JLSMobileApplication/obj
+/JLSMobileApplication/Logs
+/JLSDataModel/obj
+/.vs
+/JLSDataModel/bin
+/JLSDataAccess/bin
+Properties
+/JLSMobileApplication/web.config
+/JLSMobileApplication/appsettings.Development.json
+
+/JLSMobileApplication/Exports
+/JLSMobileApplication/Images
+/JLSMobileApplication/json/json.json
+/JLSMobileApplication/Angular
+/JLSMobileApplication/images(1)
