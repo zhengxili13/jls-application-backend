@@ -82,6 +82,10 @@ try
     services.AddTransient<IEmailService, MailkitEmailService>();
     services.AddTransient<IExportService, ExportService>();
     services.AddTransient<ISendEmailAndMessageService, SendEmailAndMessageService>();
+    
+    // Register Scriban renderer and pass the path to the HTML templates
+    var templateDir = Path.Combine(AppContext.BaseDirectory, "EmailTemplates");
+    services.AddTransient<IEmailTemplateRenderer>(_ => new ScribanEmailTemplateRenderer(templateDir));
 
     services.Configure<IdentityOptions>(options =>
     {
@@ -142,7 +146,6 @@ try
     services.AddScoped<IMessageRepository, MessageRepository>();
     services.AddScoped<IAnalyticsReporsitory, AnalyticsRepository>();
     services.AddScoped<TokenModel>();
-    services.AddScoped<IViewRenderService, ViewRenderService>();
     services.AddHangfireServer();
 
     var app = builder.Build();
@@ -165,7 +168,7 @@ try
     {
         var scopedProvider = scope.ServiceProvider;
         RecurringJob.AddOrUpdate(ApplicationConstants.SendEmailJob,
-            () => scopedProvider.GetRequiredService<ISendEmailAndMessageService>().SendEmailInDb(), Cron.Minutely);
+            () => scopedProvider.GetRequiredService<ISendEmailAndMessageService>().SendQueuedEmails(), Cron.Minutely);
     }
 
     using (var scope = app.Services.CreateScope())
@@ -255,3 +258,5 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+public partial class Program { }

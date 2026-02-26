@@ -4,13 +4,15 @@ namespace JLSApplicationBackend.Services;
 
 public interface ISendEmailAndMessageService
 {
-    Task<long> CreateOrUpdateOrderAsync(long OrderId, string Type);
+    Task<long> CreateOrUpdateOrderAsync(long orderId, string type);
 
-    Task<int> ResetPasswordOuConfirmEmailLinkAsync(int UserId, string Link, string Type);
-    Task<int> AfterResetPasswordOuConfirmEmailLinkAsync(int UserId, string Type);
+    Task<int> ResetPasswordOrConfirmEmailLinkAsync(int userId, string link, string type);
+    Task<int> AfterResetPasswordOrConfirmEmailLinkAsync(int userId, string type);
 
-    Task<int> ClientMessageToAdminAsync(string ClientEmail, string Message);
-    int SendAdvertisement(string Type);
+    Task<int> ClientMessageToAdminAsync(string clientEmail, string message);
 
-    void SendEmailInDb();
+    /// <summary>
+    /// Dispatches all queued emails in the EmailToSend table. Called by a background job.
+    /// </summary>
+    void SendQueuedEmails();
 }

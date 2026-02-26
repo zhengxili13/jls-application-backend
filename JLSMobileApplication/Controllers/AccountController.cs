@@ -86,7 +86,7 @@ public class AccountController(
             var callbackUrl = Url.Action("ConfirmEmail", "Account", new { userId = userIdentity.Id, code },
                 HttpContext.Request.Scheme);
 
-            await sendEmailAndMessageService.ResetPasswordOuConfirmEmailLinkAsync(userIdentity.Id, callbackUrl,
+            await sendEmailAndMessageService.ResetPasswordOrConfirmEmailLinkAsync(userIdentity.Id, callbackUrl,
                 "EmailConfirmation");
             return Json(new ApiResult
             {
@@ -127,7 +127,7 @@ public class AccountController(
             // TODO redirect to error page 
             return new JsonResult("ERROR"); // cannot find the user
 
-        await sendEmailAndMessageService.AfterResetPasswordOuConfirmEmailLinkAsync(user.Id, "AfterEmailConfirmation");
+        await sendEmailAndMessageService.AfterResetPasswordOrConfirmEmailLinkAsync(user.Id, "AfterEmailConfirmation");
         if (user.EmailConfirmed) return Redirect(_appSettings.WebSiteUrl); // 
         var result = await userManager.ConfirmEmailAsync(user, code);
 
@@ -141,7 +141,7 @@ public class AccountController(
         var callbackUrl = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, code = token },
             HttpContext.Request.Scheme);
 
-        await sendEmailAndMessageService.ResetPasswordOuConfirmEmailLinkAsync(user.Id, callbackUrl,
+        await sendEmailAndMessageService.ResetPasswordOrConfirmEmailLinkAsync(user.Id, callbackUrl,
             "EmailConfirmation");
         return RedirectToAction("ResentEmail", "Notifications");
     }
@@ -171,7 +171,7 @@ public class AccountController(
             (userIdentity, codeDecoded, obj.Password).Result;
         if (result.Succeeded)
         {
-            sendEmailAndMessageService.AfterResetPasswordOuConfirmEmailLinkAsync(userIdentity.Id, "AfterResetPassword");
+            sendEmailAndMessageService.AfterResetPasswordOrConfirmEmailLinkAsync(userIdentity.Id, "AfterResetPassword");
             ViewBag.Message = "Password reset successful!";
             return true;
         }
@@ -204,7 +204,7 @@ public class AccountController(
 
         var resetLink = _appSettings.WebSiteUrl + "/account/resetPassword?Token=" + codeEncoded + "&Username=" +
                         user.UserName;
-        await sendEmailAndMessageService.ResetPasswordOuConfirmEmailLinkAsync(user.Id, resetLink, "ResetPassword");
+        await sendEmailAndMessageService.ResetPasswordOrConfirmEmailLinkAsync(user.Id, resetLink, "ResetPassword");
         return Json(new ApiResult
         {
             DataExt = resetLink,

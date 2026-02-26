@@ -1,17 +1,123 @@
-/JLSDataAccess/obj
-/JLSMobileApplication/bin
-/JLSMobileApplication/obj
-/JLSMobileApplication/Logs
-/JLSDataModel/obj
-/.vs
-/JLSDataModel/bin
-/JLSDataAccess/bin
-Properties
-/JLSMobileApplication/web.config
-/JLSMobileApplication/appsettings.Development.json
+# ========================
+# .NET / C#
+# ========================
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+.vs/
+*.rsuser
 
-/JLSMobileApplication/Exports
-/JLSMobileApplication/Images
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+artifacts/
+
+# Build & Publish output
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Pp]ublish/
+bld/
+
+# MSBuild
+*.pidb
+*.svclog
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage*/
+*.opencover.xml
+[Tt]est[Rr]esult*/
+
+# ========================
+# ASP.NET / Secrets
+# ========================
+# Keep base appsettings, ignore environment-specific overrides
+appsettings.Development.json
+appsettings.Staging.json
+appsettings.Production.json
+appsettings.Local.json
+secrets.json
+*.pfx
+*.cer
+
+# ========================
+# Logs
+# ========================
+*.log
+Logs/
+logs/
+
+# ========================
+# Application-specific
+# ========================
+/JLSMobileApplication/Exports/
+/JLSMobileApplication/Images/
+/JLSMobileApplication/images(1)/
 /JLSMobileApplication/json/json.json
-/JLSMobileApplication/Angular
-/JLSMobileApplication/images(1)
+/JLSMobileApplication/web.config
+
+# Angular build output (built by CI, not committed)
+/JLSMobileApplication/Angular/
+
+# ========================
+# IDE / Editor
+# ========================
+
+# Visual Studio
+.vs/
+Properties/PublishProfiles/
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# JetBrains (Rider)
+.idea/
+*.sln.iml
+
+# ========================
+# Node.js / Angular (source)
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+
+# ========================
+# OS
+# ========================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ========================
+# Miscellaneous
+# ========================
+*.tmp
+*.bak
+*.swp

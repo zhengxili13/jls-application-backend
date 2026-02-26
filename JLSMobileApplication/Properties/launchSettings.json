@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "JLSMobileApplication": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:49631;http://localhost:49632"
+    }
+  }
+}
