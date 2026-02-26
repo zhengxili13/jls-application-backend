@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jls-backend
+    ports:
+      - "5000:80"
+    volumes:
+      - jls-exports:/app/Exports
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ExportPath=/app/Exports
+    restart: always
+
+volumes:
+  jls-exports:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${EXPORT_DIR:-./Exports}

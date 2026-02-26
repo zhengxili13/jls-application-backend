@@ -28,7 +28,7 @@ public class Initialization
             {
                 /* Convert here to base64 */
                 var Password = _appSettings.AdminInitialPassword;
-                var PasswordInByte = Encoding.Default.GetBytes(Password);
+                var PasswordInByte = Encoding.UTF8.GetBytes(Password);
                 var encryptedPassword = Convert.ToBase64String(PasswordInByte);
 
                 var u = new User();

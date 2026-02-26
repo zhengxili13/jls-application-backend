@@ -10,7 +10,9 @@ using JLSApplicationBackend.HtmlToPdf;
 using JLSApplicationBackend.Services;
 using JLSDataAccess;
 using JLSDataAccess.Interfaces;
-using Magicodes.ExporterAndImporter.Pdf;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,6 +20,7 @@ using Newtonsoft.Json;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Reflection;
+using JLSDataModel.ViewModels;
 
 namespace JLSMobileApplication.Services;
 
@@ -29,6 +32,10 @@ public class ExportService(
     ILogger<ExportService> logger)
     : IExportService
 {
+    static ExportService()
+    {
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+    }
     private readonly AppSettings _appSettings = appSettings.Value;
 
     public MemoryStream ExportExcel(List<dynamic> List, string ExportName)
@@ -148,7 +155,7 @@ public class ExportService(
                     if (currentRow?.GetCell(columnNum) != null)
                     {
                         var currentCell = currentRow.GetCell(columnNum);
-                        var length = Encoding.Default.GetBytes(currentCell.ToString()).Length + 1;
+                        var length = Encoding.UTF8.GetBytes(currentCell.ToString()).Length + 1;
                         if (columnWidth < length) columnWidth = length;
                     }
                 }
@@ -176,87 +183,17 @@ public class ExportService(
             /* File name */
             var fileName = Path.Combine(_appSettings.ExportPath, $"{DateTime.Now:yyyyMMdd_HHmmss}_Invoice.pdf");
 
-            /* Load template from embedded resource */
-            var assembly = Assembly.GetExecutingAssembly();
-            var resourceName = assembly.GetManifestResourceNames()
-                .FirstOrDefault(n => n.EndsWith("receipt.cshtml", StringComparison.OrdinalIgnoreCase))
-                ?? throw new FileNotFoundException("Embedded receipt.cshtml template not found.");
-            using var stream = assembly.GetManifestResourceStream(resourceName);
-            using var reader = new StreamReader(stream);
-            var tpl = await reader.ReadToEndAsync();
+
 
             /* GetOrderInfo */
             var orderInfo = await orderRepository.GetOrdersListByOrderId(OrderId, Lang);
 
-            /* Get order basic info */
-            var receipt = new ReceiptInfo();
-
-            var order = orderInfo.OrderInfo;
-            if (order != null)
-            {
-                receipt.OrderId = order.Id;
-                receipt.CreatedOn = order.CreatedOn ?? DateTime.Now;
-                receipt.TotalPrice = (float)(order.TotalPrice ?? 0);
-            }
-
-            var customer = orderInfo.CustomerInfo;
-            if (customer != null)
-            {
-                receipt.Username = customer.Email;
-                receipt.PhoneNumber = customer.PhoneNumber;
-                receipt.Entreprise = customer.EntrepriseName;
-                receipt.Siret = customer.Siret;
-            }
-
-            var clientRemark = orderInfo.ClientRemark;
-            if (clientRemark?.Text != null) 
-                receipt.ClientRemark = clientRemark.Text;
-
-            /* Get order tax info */
-            var tax = orderInfo.TaxRate;
-            if (tax != null && float.TryParse(tax.Value, out var parsedTax))
-            {
-                receipt.TaxRate = parsedTax;
-            }
-
-            /* Get order product list info */
-            var productList = orderInfo.ProductList;
-            if (productList != null)
-            {
-                foreach (var item in productList)
-                {
-                    receipt.ProductList.Add(new ReceiptProductList
-                    {
-                        Code = item.Code,
-                        Colissage = item.QuantityPerBox ?? 0,
-                        QuantityPerParcel = item.QuantityPerParcel ?? 0,
-                        PhotoPath = $"{_appSettings.WebSiteUrl}{item.DefaultPhotoPath}",
-                        Label = item.Label,
-                        Price = (float)(item.Price ?? 0),
-                        Quantity = item.Quantity,
-                        IsModifiedPriceOrBox = item.IsModifiedPriceOrBox
-                    });
-
-                    receipt.TotalPriceWithoutTax += (float)((item.QuantityPerBox ?? 0) * (item.Price ?? 0) * item.Quantity);
-                }
-
-                if (tax != null && float.TryParse(tax.Value, out var taxValue))
-                {
-                    receipt.Tax = (float)(receipt.TotalPriceWithoutTax * taxValue * 0.01);
-                }
-            }
-
-            /* Get facturation address */
-            if (orderInfo.FacturationAdress != null) 
-                receipt.FacturationAddress = orderInfo.FacturationAdress;
-                
-            /* Get shipping address */
-            if (orderInfo.ShippingAdress != null) 
-                receipt.ShipmentAddress = orderInfo.ShippingAdress;
+            /* Map to ReceiptInfo model */
+            var receipt = BuildReceiptInfo(orderInfo);
 
             /* Generate pdf */
-            var exporter = new PdfExporter();
-            var result = await exporter.ExportByTemplate(fileName, receipt, tpl);
+            var document = new ReceiptDocument(receipt, "Commande");
+            document.GeneratePdf(fileName);
 
             return fileName;
         }
@@ -265,5 +202,75 @@ public class ExportService(
             logger.LogError(e, "ExportPdf failed.");
             throw;
         }
+    }
+
+    public ReceiptInfo BuildReceiptInfo(OrderFullDetailDto orderInfo)
+    {
+        var receipt = new ReceiptInfo();
+
+        var order = orderInfo.OrderInfo;
+        if (order != null)
+        {
+            receipt.OrderId = order.Id;
+            receipt.CreatedOn = order.CreatedOn ?? DateTime.Now;
+            receipt.TotalPrice = (float)(order.TotalPrice ?? 0);
+        }
+
+        var customer = orderInfo.CustomerInfo;
+        if (customer != null)
+        {
+            receipt.Username = customer.Email;
+            receipt.PhoneNumber = customer.PhoneNumber;
+            receipt.Entreprise = customer.EntrepriseName;
+            receipt.Siret = customer.Siret;
+        }
+
+        var clientRemark = orderInfo.ClientRemark;
+        if (clientRemark?.Text != null)
+            receipt.ClientRemark = clientRemark.Text;
+
+        /* Get order tax info */
+        var tax = orderInfo.TaxRate;
+        if (tax != null && float.TryParse(tax.Value, out var parsedTax))
+        {
+            receipt.TaxRate = parsedTax;
+        }
+
+        /* Get order product list info */
+        var productList = orderInfo.ProductList;
+        if (productList != null)
+        {
+            foreach (var item in productList)
+            {
+                receipt.ProductList.Add(new ReceiptProductList
+                {
+                    Code = item.Code,
+                    Colissage = item.QuantityPerBox ?? 0,
+                    QuantityPerParcel = item.QuantityPerParcel ?? 0,
+                    PhotoPath = $"{_appSettings.WebSiteUrl}{item.DefaultPhotoPath}",
+                    Label = item.Label,
+                    Price = (float)(item.Price ?? 0),
+                    Quantity = item.Quantity,
+                    IsModifiedPriceOrBox = item.IsModifiedPriceOrBox
+                });
+
+                receipt.TotalPriceWithoutTax += (float)((item.QuantityPerBox ?? 0) * (item.Price ?? 0) * item.Quantity);
+            }
+
+            if (tax != null && float.TryParse(tax.Value, out var taxValue))
+            {
+                receipt.Tax = (float)(receipt.TotalPriceWithoutTax * taxValue * 0.01);
+            }
+        }
+
+        /* Get facturation address */
+        if (orderInfo.FacturationAdress != null)
+            receipt.FacturationAddress = orderInfo.FacturationAdress;
+
+        /* Get shipping address */
+        if (orderInfo.ShippingAdress != null)
+            receipt.ShipmentAddress = orderInfo.ShippingAdress;
+
+        return receipt;
     }
 }

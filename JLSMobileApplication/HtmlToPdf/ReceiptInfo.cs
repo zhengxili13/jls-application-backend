@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using JLSDataModel.Models.Adress;
-using Magicodes.ExporterAndImporter.Pdf;
+using JLSDataModel.Models.Adress;
 
 namespace JLSApplicationBackend.HtmlToPdf;
 
-[PdfExporter(Name = "Commande")]
 public class ReceiptInfo
 {
     public ReceiptInfo()

@@ -1,0 +1,17 @@
+**/.bin
+**/.obj
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/.git
+**/.gitignore
+**/node_modules
+**/dist
+**/*.user
+**/*.lock.json
+.dockerignore
+Dockerfile
+docker-compose.yml
+**/Exports
+**/Logs
