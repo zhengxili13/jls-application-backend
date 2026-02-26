@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using System.Reflection;
 
 namespace JLSMobileApplication.Services;
 
@@ -32,145 +33,137 @@ public class ExportService(
 
     public MemoryStream ExportExcel(List<dynamic> List, string ExportName)
     {
-        if (List != null && List.Count() > 0)
+        if (List != null && List.Count > 0)
         {
-            /*Step0: Create file */
-            var newFile = _appSettings.ExportPath + "/" + ExportName + ".xls";
-            if (File.Exists(newFile)) File.Delete(newFile);
-
-            using (var fs = new FileStream(newFile, FileMode.Create, FileAccess.Write))
+            /* Step1: Get export model */
+            var ExportConfiguration = context.ExportConfiguration.FirstOrDefault(p => p.ExportName == ExportName);
+            List<ExportModel> ExportConfigurationModel = null;
+            if (!string.IsNullOrEmpty(ExportConfiguration?.ExportModel))
             {
-                /* Step1: Get export model */
-                var ExportConfiguration =
-                    context.ExportConfiguration.Where(p => p.ExportName == ExportName).FirstOrDefault();
-                List<ExportModel> ExportConfigurationModel = null;
-                if (ExportConfiguration != null && ExportConfiguration.ExportModel != null &&
-                    ExportConfiguration.ExportModel != "")
-                    ExportConfigurationModel =
-                        JsonConvert.DeserializeObject<List<ExportModel>>(ExportConfiguration.ExportModel);
-                /* Step2: Calcul the targeted Column */
+                ExportConfigurationModel = JsonConvert.DeserializeObject<List<ExportModel>>(ExportConfiguration.ExportModel);
+            }
+            
+            /* Step2: Calcul the targeted Column */
 
-                // Get columns title from first object in the list
-                var columns = List[0].GetType().GetProperties();
-                var targetColumns = new List<string>();
-                var targetCoulmnsWithOrder = new List<ExportModel>();
+            // Get columns title from first object in the list
+            var columns = List[0].GetType().GetProperties();
+            var targetColumns = new List<string>();
+            var targetCoulmnsWithOrder = new List<ExportModel>();
 
-                foreach (var item in columns)
-                    if (ExportConfigurationModel != null)
-                    {
-                        var temp = ExportConfigurationModel.Where(p => p.Name == item.Name).FirstOrDefault();
-                        if (temp != null) targetCoulmnsWithOrder.Add(temp);
-                    }
-                    else
-                    {
-                        targetColumns.Add(item.Name);
-                    }
-
-                targetCoulmnsWithOrder = targetCoulmnsWithOrder.OrderBy(x => x.Order).ToList();
-
-                /*Step3: Create Excel flow */
-                IWorkbook workbook = new XSSFWorkbook();
-                var sheet = workbook.CreateSheet(ExportName);
-                var header = sheet.CreateRow(0);
-
-                /* Bold the title */
-                var headerFont = (XSSFFont)workbook.CreateFont();
-                headerFont.IsBold = true;
-                var firstTitleStyle = (XSSFCellStyle)workbook.CreateCellStyle();
-                firstTitleStyle.SetFont(headerFont);
-
-                /*Step4: Add headers*/
-                var columnsCounter = 0;
-                foreach (var item in targetCoulmnsWithOrder)
+            foreach (var item in columns)
+            {
+                if (ExportConfigurationModel != null)
                 {
-                    if (ExportConfigurationModel != null)
+                    var temp = ExportConfigurationModel.FirstOrDefault(p => p.Name == item.Name);
+                    if (temp != null) targetCoulmnsWithOrder.Add(temp);
+                }
+                else
+                {
+                    targetColumns.Add(item.Name);
+                }
+            }
+
+            targetCoulmnsWithOrder = targetCoulmnsWithOrder.OrderBy(x => x.Order).ToList();
+
+            /*Step3: Create Excel flow */
+            IWorkbook workbook = new XSSFWorkbook();
+            var sheet = workbook.CreateSheet(ExportName);
+            var header = sheet.CreateRow(0);
+
+            /* Bold the title */
+            var headerFont = (XSSFFont)workbook.CreateFont();
+            headerFont.IsBold = true;
+            var firstTitleStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+            firstTitleStyle.SetFont(headerFont);
+
+            /*Step4: Add headers*/
+            var columnsCounter = 0;
+            foreach (var item in targetCoulmnsWithOrder)
+            {
+                if (ExportConfigurationModel != null)
+                {
+                    var temp = ExportConfigurationModel.Where(p => p.Name == item.Name).Select(p => p.DisplayName).FirstOrDefault();
+                    var cell = header.CreateCell(columnsCounter);
+                    cell.CellStyle = firstTitleStyle;
+                    cell.SetCellValue(temp ?? item.Name);
+                }
+                else
+                {
+                    header.CreateCell(columnsCounter).SetCellValue(item.Name);
+                }
+
+                columnsCounter++;
+            }
+
+            /*Step5: Add body */
+            var rowIndex = 1;
+            foreach (var item in List)
+            {
+                var datarow = sheet.CreateRow(rowIndex);
+                columnsCounter = 0;
+                
+                foreach (var column in targetCoulmnsWithOrder)
+                {
+                    string valueFormatted = null;
+                    var value = item.GetType().GetProperty(column.Name).GetValue(item, null);
+                    
+                    if (value != null)
                     {
-                        var temp = ExportConfigurationModel.Where(p => p.Name == item.Name).Select(p => p.DisplayName)
-                            .FirstOrDefault();
-                        var cell = header.CreateCell(columnsCounter);
-                        cell.CellStyle = firstTitleStyle;
-                        cell.SetCellValue(temp != null ? temp : item.Name);
+                        var valueType = value.GetType();
+
+                        if (valueType.Name == "Boolean")
+                            valueFormatted = (bool)value ? "OUI" : "NON";
+                        else if (valueType.Name == "DateTime") 
+                            valueFormatted = value.ToString();
+                        
+                        if (column.Name.Contains("Path"))
+                            value = $"{httpContextAccessor.HttpContext.Request.Host}{httpContextAccessor.HttpContext.Request.PathBase}/{value}";
+                        if (column.Name.Contains("Price")) 
+                            value = $"{value}€(HT)";
                     }
                     else
                     {
-                        header.CreateCell(columnsCounter).SetCellValue(item.Name);
+                        value = "";
                     }
+
+                    if (value is IList && value.GetType().IsGenericType) valueFormatted = "";
+
+                    var cell = datarow.CreateCell(columnsCounter);
+                    cell.SetCellValue(valueFormatted ?? value?.ToString() ?? "");
 
                     columnsCounter++;
                 }
 
-                /*Step5: Add body */
-                var rowIndex = 1;
-                foreach (var item in List)
-                {
-                    var datarow = sheet.CreateRow(rowIndex);
-
-                    columnsCounter = 0;
-                    foreach (var column in targetCoulmnsWithOrder)
-                    {
-                        string valueFormatted = null;
-                        var value = item.GetType().GetProperty(column.Name).GetValue(item, null);
-                        if (value != null)
-                        {
-                            var valueType = value.GetType();
-
-                            if (valueType.Name == "Boolean")
-                                valueFormatted = value ? "OUI" : "NON";
-                            else if (valueType.Name == "DateTime") valueFormatted = value.ToString();
-                            if (column.Name.Contains("Path"))
-                                value = httpContextAccessor.HttpContext.Request.Host +
-                                        httpContextAccessor.HttpContext.Request.PathBase + "/" + value;
-                            if (column.Name.Contains("Price")) value = value + "€(HT)";
-                        }
-                        else
-                        {
-                            value = "";
-                        }
-
-                        if (value is IList && value.GetType().IsGenericType) valueFormatted = "";
-
-                        var cell = datarow.CreateCell(columnsCounter);
-
-                        cell.SetCellValue(valueFormatted != null ? valueFormatted : value);
-
-                        columnsCounter++;
-                    }
-
-                    rowIndex++;
-                }
-
-                /* Adapt the width of excel */
-                for (var columnNum = 0; columnNum < targetCoulmnsWithOrder.Count(); columnNum++)
-                {
-                    var columnWidth = (int)sheet.GetColumnWidth(columnNum) / 256;
-                    //5为开始修改的行数，默认为0行开始
-                    for (var rowNum = 0; rowNum <= sheet.LastRowNum; rowNum++)
-                    {
-                        var currentRow = sheet.GetRow(rowNum);
-                        if (currentRow.GetCell(columnNum) != null)
-                        {
-                            var currentCell = currentRow.GetCell(columnNum);
-                            var length = Encoding.Default.GetBytes(currentCell.ToString()).Length + 1;
-                            if (columnWidth < length) columnWidth = length;
-                        }
-                    }
-
-                    sheet.SetColumnWidth(columnNum, columnWidth * 256);
-                }
-
-
-                workbook.Write(fs);
+                rowIndex++;
             }
 
-            var memory = new MemoryStream();
-            using (var stream = new FileStream(newFile, FileMode.Open))
+            /* Adapt the width of excel */
+            for (var columnNum = 0; columnNum < targetCoulmnsWithOrder.Count; columnNum++)
             {
-                stream.CopyTo(memory);
+                var columnWidth = (int)sheet.GetColumnWidth(columnNum) / 256;
+                // 5为开始修改的行数，默认为0行开始
+                for (var rowNum = 0; rowNum <= sheet.LastRowNum; rowNum++)
+                {
+                    var currentRow = sheet.GetRow(rowNum);
+                    if (currentRow?.GetCell(columnNum) != null)
+                    {
+                        var currentCell = currentRow.GetCell(columnNum);
+                        var length = Encoding.Default.GetBytes(currentCell.ToString()).Length + 1;
+                        if (columnWidth < length) columnWidth = length;
+                    }
+                }
+
+                sheet.SetColumnWidth(columnNum, columnWidth * 256);
             }
 
+            // Write workbook directly to memory stream
+            using var memory = new MemoryStream();
+            workbook.Write(memory, leaveOpen: true);
             memory.Position = 0;
 
-            return memory;
+            // Copy to a new stream to avoid disposing issues if 'leaveOpen' isn't perfectly supported in this NPOI version
+            var finalStream = new MemoryStream(memory.ToArray());
+            return finalStream;
         }
 
         return null;
@@ -181,27 +174,32 @@ public class ExportService(
         try
         {
             /* File name */
-            var fileName = _appSettings.ExportPath + "/" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_Invoice.pdf";
-            /* Get template path */
-            var tplPath = Path.Combine(Directory.GetCurrentDirectory(), "Views", "HtmlToPdf",
-                "receipt.cshtml");
-            var tpl = File.ReadAllText(tplPath);
+            var fileName = Path.Combine(_appSettings.ExportPath, $"{DateTime.Now:yyyyMMdd_HHmmss}_Invoice.pdf");
 
-            /* GetOrderInfo todo change */
-            var orderInfo = await orderRepository.GetOrdersListByOrderId(OrderId, Lang); // todo change 
+            /* Load template from embedded resource */
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("receipt.cshtml", StringComparison.OrdinalIgnoreCase))
+                ?? throw new FileNotFoundException("Embedded receipt.cshtml template not found.");
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            using var reader = new StreamReader(stream);
+            var tpl = await reader.ReadToEndAsync();
+
+            /* GetOrderInfo */
+            var orderInfo = await orderRepository.GetOrdersListByOrderId(OrderId, Lang);
 
             /* Get order basic info */
             var receipt = new ReceiptInfo();
 
-            var order = orderInfo.GetType().GetProperty("OrderInfo").GetValue(orderInfo, null);
+            var order = orderInfo.OrderInfo;
             if (order != null)
             {
                 receipt.OrderId = order.Id;
-                receipt.CreatedOn = order.CreatedOn;
-                receipt.TotalPrice = order.TotalPrice;
+                receipt.CreatedOn = order.CreatedOn ?? DateTime.Now;
+                receipt.TotalPrice = (float)(order.TotalPrice ?? 0);
             }
 
-            var customer = orderInfo.GetType().GetProperty("CustomerInfo").GetValue(orderInfo, null);
+            var customer = orderInfo.CustomerInfo;
             if (customer != null)
             {
                 receipt.Username = customer.Email;
@@ -210,61 +208,61 @@ public class ExportService(
                 receipt.Siret = customer.Siret;
             }
 
-            var clientRemark = orderInfo.GetType().GetProperty("ClientRemark").GetValue(orderInfo, null);
-            if (clientRemark != null && clientRemark.Text != null) receipt.ClientRemark = clientRemark.Text;
-            /* Get order tax info */
-            var tax = orderInfo.GetType().GetProperty("TaxRate").GetValue(orderInfo, null);
+            var clientRemark = orderInfo.ClientRemark;
+            if (clientRemark?.Text != null) 
+                receipt.ClientRemark = clientRemark.Text;
 
-            receipt.TaxRate = float.Parse(tax.GetType().GetProperty("Value").GetValue(tax, null));
+            /* Get order tax info */
+            var tax = orderInfo.TaxRate;
+            if (tax != null && float.TryParse(tax.Value, out var parsedTax))
+            {
+                receipt.TaxRate = parsedTax;
+            }
 
             /* Get order product list info */
-            var productList = orderInfo.GetType().GetProperty("ProductList").GetValue(orderInfo, null);
+            var productList = orderInfo.ProductList;
             if (productList != null)
             {
                 foreach (var item in productList)
                 {
                     receipt.ProductList.Add(new ReceiptProductList
                     {
-                        Code = item.GetType().GetProperty("Code").GetValue(item, null),
-                        Colissage = item.GetType().GetProperty("QuantityPerBox").GetValue(item, null),
-                        QuantityPerParcel = item.GetType().GetProperty("QuantityPerParcel").GetValue(item, null),
-                        PhotoPath = _appSettings.WebSiteUrl +
-                                    item.GetType().GetProperty("DefaultPhotoPath").GetValue(item, null),
-                        Label = item.GetType().GetProperty("Label").GetValue(item, null),
-                        Price = (float)item.GetType().GetProperty("Price").GetValue(item, null),
-                        Quantity = item.GetType().GetProperty("Quantity").GetValue(item, null),
-                        IsModifiedPriceOrBox = item.GetType().GetProperty("IsModifiedPriceOrBox").GetValue(item, null)
+                        Code = item.Code,
+                        Colissage = item.QuantityPerBox ?? 0,
+                        QuantityPerParcel = item.QuantityPerParcel ?? 0,
+                        PhotoPath = $"{_appSettings.WebSiteUrl}{item.DefaultPhotoPath}",
+                        Label = item.Label,
+                        Price = (float)(item.Price ?? 0),
+                        Quantity = item.Quantity,
+                        IsModifiedPriceOrBox = item.IsModifiedPriceOrBox
                     });
 
-                    receipt.TotalPriceWithoutTax = (float)(receipt.TotalPriceWithoutTax +
-                                                           item.GetType().GetProperty("QuantityPerBox")
-                                                               .GetValue(item, null) *
-                                                           item.GetType().GetProperty("Price").GetValue(item, null) *
-                                                           item.GetType().GetProperty("Quantity").GetValue(item, null));
+                    receipt.TotalPriceWithoutTax += (float)((item.QuantityPerBox ?? 0) * (item.Price ?? 0) * item.Quantity);
                 }
 
-                if (tax != null)
-                    receipt.Tax = (float)(receipt.TotalPriceWithoutTax *
-                                          float.Parse(tax.GetType().GetProperty("Value").GetValue(tax, null)) * 0.01);
+                if (tax != null && float.TryParse(tax.Value, out var taxValue))
+                {
+                    receipt.Tax = (float)(receipt.TotalPriceWithoutTax * taxValue * 0.01);
+                }
             }
 
             /* Get facturation address */
-            var facturationAddress = orderInfo.GetType().GetProperty("FacturationAdress").GetValue(orderInfo, null);
-            if (facturationAddress != null) receipt.FacturationAddress = facturationAddress;
+            if (orderInfo.FacturationAdress != null) 
+                receipt.FacturationAddress = orderInfo.FacturationAdress;
+                
             /* Get shipping address */
-            var shippingAddress = orderInfo.GetType().GetProperty("ShippingAdress").GetValue(orderInfo, null);
-            if (shippingAddress != null) receipt.ShipmentAddress = shippingAddress;
+            if (orderInfo.ShippingAdress != null) 
+                receipt.ShipmentAddress = orderInfo.ShippingAdress;
 
             /* Generate pdf */
             var exporter = new PdfExporter();
-            var result = await exporter.ExportByTemplate(fileName, receipt
-                , tpl);
+            var result = await exporter.ExportByTemplate(fileName, receipt, tpl);
 
             return fileName;
         }
         catch (Exception e)
         {
-            logger.LogError(e.Message);
+            logger.LogError(e, "ExportPdf failed.");
             throw;
         }
     }

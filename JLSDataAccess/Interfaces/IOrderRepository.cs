@@ -15,7 +15,7 @@ public interface IOrderRepository
 
     Task<List<OrderListViewModelMobile>> GetOrdersListByUserId(int UserId, string StatusCode, string Lang);
 
-    Task<dynamic> GetOrdersListByOrderId(long OrderId, string Lang);
+    Task<JLSDataModel.ViewModels.OrderFullDetailDto> GetOrdersListByOrderId(long OrderId, string Lang);
 
 
     Task<List<dynamic>> AdvancedOrderSearchByCriteria(string Lang, int? UserId, DateTime? FromDate, DateTime? ToDate,

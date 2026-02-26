@@ -248,11 +248,11 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
     }
 
 
-    public async Task<dynamic> GetOrdersListByOrderId(long OrderId, string Lang)
+    public async Task<JLSDataModel.ViewModels.OrderFullDetailDto> GetOrdersListByOrderId(long OrderId, string Lang)
     {
         var result = await (from o in context.OrderInfo
             where o.Id == OrderId
-            select new
+            select new JLSDataModel.ViewModels.OrderFullDetailDto
             {
                 OrderInfo = new OrderInfo
                 {
@@ -288,11 +288,11 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
                     select shipmentInfo).FirstOrDefault(),
                 TaxRate = (from taxRateRi in context.ReferenceItem
                     where taxRateRi.Id == o.TaxRateId
-                    select new
+                    select new JLSDataModel.ViewModels.TaxRateDto
                     {
-                        taxRateRi.Id,
-                        taxRateRi.Code,
-                        taxRateRi.Value
+                        Id = taxRateRi.Id,
+                        Code = taxRateRi.Code,
+                        Value = taxRateRi.Value
                     }).FirstOrDefault(),
 
                 CustomerInfo = (from customer in context.CustomerInfo
@@ -301,11 +301,11 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
                 OrderType = (from riOrderType in context.ReferenceItem
                     join rlOrderType in context.ReferenceLabel on riOrderType.Id equals rlOrderType.ReferenceItemId
                     where rlOrderType.Lang == Lang && riOrderType.Id == o.OrderTypeId
-                    select new
+                    select new JLSDataModel.ViewModels.OrderTypeDto
                     {
-                        riOrderType.Id,
-                        riOrderType.Code,
-                        rlOrderType.Label
+                        Id = riOrderType.Id,
+                        Code = riOrderType.Code,
+                        Label = rlOrderType.Label
                     }).FirstOrDefault(),
                 Status = (from ri in context.ReferenceItem
                     join rl in context.ReferenceLabel on ri.Id equals rl.ReferenceItemId
@@ -319,29 +319,29 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
                 StatusInfo = (from statusInfo in context.OrderInfoStatusLog
                     where statusInfo.OrderInfoId == o.Id
                     orderby statusInfo.ActionTime descending
-                    select new
+                    select new JLSDataModel.ViewModels.OrderStatusInfoDto
                     {
-                        statusInfo.Id,
+                        Id = statusInfo.Id,
                         OldStatus = (from rlOld in context.ReferenceLabel
                             join riOld in context.ReferenceItem on rlOld.ReferenceItemId equals riOld.Id
                             where rlOld.ReferenceItemId == statusInfo.OldStatusId && rlOld.Lang == Lang
-                            select new
+                            select new JLSDataModel.ViewModels.StatusReferenceDto
                             {
                                 ReferenceId = rlOld.ReferenceItemId,
-                                riOld.Code,
-                                rlOld.Label
+                                Code = riOld.Code,
+                                Label = rlOld.Label
                             }).FirstOrDefault(),
                         NewStatus = (from rlNew in context.ReferenceLabel
                             join riNew in context.ReferenceItem on rlNew.ReferenceItemId equals riNew.Id
                             where rlNew.ReferenceItemId == statusInfo.NewStatusId && rlNew.Lang == Lang
-                            select new
+                            select new JLSDataModel.ViewModels.StatusReferenceDto
                             {
                                 ReferenceId = rlNew.ReferenceItemId,
-                                riNew.Code,
-                                rlNew.Label
+                                Code = riNew.Code,
+                                Label = rlNew.Label
                             }).FirstOrDefault(),
-                        statusInfo.ActionTime,
-                        statusInfo.UserId,
+                        ActionTime = statusInfo.ActionTime,
+                        UserId = statusInfo.UserId,
                         UserName = (from u in context.Users
                             where u.Id == statusInfo.UserId
                             select u.UserName).FirstOrDefault()
@@ -354,29 +354,29 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
                     join rc in context.ReferenceCategory on riProduct.ReferenceCategoryId equals rc.Id
                     join rl in context.ReferenceLabel on riProduct.Id equals rl.ReferenceItemId
                     where op.OrderId == o.Id && rc.ShortLabel == "Product" && rl.Lang == Lang
-                    select new
+                    select new JLSDataModel.ViewModels.OrderProductDto
                     {
                         UnityQuantity = op.Colissage,
-                        op.Quantity,
+                        Quantity = op.Quantity,
                         ProductId = p.Id,
                         ReferenceId = riProduct.Id,
-                        riProduct.Code,
-                        riProduct.ParentId,
-                        riProduct.Value,
-                        riProduct.Order,
-                        rl.Label,
+                        Code = riProduct.Code,
+                        ParentId = riProduct.ParentId,
+                        Value = riProduct.Value,
+                        Order = riProduct.Order,
+                        Label = rl.Label,
                         Price = op.UnitPrice,
-                        op.TotalPrice,
+                        TotalPrice = op.TotalPrice,
                         IsModifiedPriceOrBox =
                             !(op.Colissage == p.QuantityPerBox && Math.Abs(op.UnitPrice.Value - p.Price.Value) < 0.001)
                                 ? true
                                 : false,
                         QuantityPerBox = op.Colissage != 0 ? op.Colissage : p.QuantityPerBox,
-                        p.QuantityPerParcel,
-                        p.MinQuantity,
-                        p.Size,
-                        p.Color,
-                        p.Material,
+                        QuantityPerParcel = p.QuantityPerParcel,
+                        MinQuantity = p.MinQuantity,
+                        Size = p.Size,
+                        Color = p.Color,
+                        Material = p.Material,
                         DefaultPhotoPath = (from path in context.ProductPhotoPath
                             where path.ProductId == p.Id
                             select path.Path).FirstOrDefault(),

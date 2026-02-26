@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using JLSApplicationBackend.HtmlToPdf;
 using JLSDataAccess.Interfaces;
@@ -23,11 +25,16 @@ public class HtmlToPdfController : Controller
     public async Task<ActionResult> ExportPdf()
     {
         /* File name */
-        var fileName = "Exports/" + DateTime.Now.Second + "_Invoice.pdf";
-        /* Get template path */
-        var tplPath = Path.Combine(Directory.GetCurrentDirectory(), "Views", "HtmlToPdf",
-            "receipt.cshtml");
-        var tpl = System.IO.File.ReadAllText(tplPath);
+        var fileName = Path.Combine("Exports", $"{DateTime.Now.Second}_Invoice.pdf");
+
+        /* Load template from embedded resource */
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceName = assembly.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith("receipt.cshtml", StringComparison.OrdinalIgnoreCase))
+            ?? throw new FileNotFoundException("Embedded receipt.cshtml template not found.");
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        using var reader = new StreamReader(stream);
+        var tpl = await reader.ReadToEndAsync();
 
         /* GetOrderInfo todo change */
         var orderInfo = await _orderRepository.GetOrdersListByOrderId(26, "fr"); // todo change 
@@ -35,15 +42,15 @@ public class HtmlToPdfController : Controller
         /* Get order basic info */
         var receipt = new ReceiptInfo();
 
-        var order = orderInfo.GetType().GetProperty("OrderInfo").GetValue(orderInfo, null);
+        var order = orderInfo.OrderInfo;
         if (order != null)
         {
             receipt.OrderId = order.Id;
-            receipt.CreatedOn = order.CreatedOn;
-            receipt.TotalPrice = order.TotalPrice;
+            receipt.CreatedOn = order.CreatedOn ?? DateTime.Now;
+            receipt.TotalPrice = (float)(order.TotalPrice ?? 0);
         }
 
-        var customer = orderInfo.GetType().GetProperty("CustomerInfo").GetValue(orderInfo, null);
+        var customer = orderInfo.CustomerInfo;
         if (customer != null)
         {
             receipt.Username = customer.Email;
@@ -53,28 +60,27 @@ public class HtmlToPdfController : Controller
         }
 
         /* Get order tax info */
-        var tax = orderInfo.GetType().GetProperty("TaxRate").GetValue(orderInfo, null);
-        if (tax != null)
-            receipt.Tax = receipt.TotalPrice * double.Parse(tax.GetType().GetProperty("Value").GetValue(tax, null)) *
-                          0.01;
+        var tax = orderInfo.TaxRate;
+        if (tax != null && double.TryParse(tax.Value, out var parsedTax))
+            receipt.Tax = (float)(receipt.TotalPrice * parsedTax * 0.01);
 
         /* Get order product list info */
-        var productList = orderInfo.GetType().GetProperty("ProductList").GetValue(orderInfo, null);
+        var productList = orderInfo.ProductList;
         if (productList != null)
             foreach (var item in productList)
                 receipt.ProductList.Add(new ReceiptProductList
                 {
-                    Code = item.GetType().GetProperty("Code").GetValue(item, null),
-                    Label = item.GetType().GetProperty("Label").GetValue(item, null),
-                    Price = item.GetType().GetProperty("Price").GetValue(item, null),
-                    Quantity = item.GetType().GetProperty("Quantity").GetValue(item, null)
+                    Code = item.Code,
+                    Label = item.Label,
+                    Price = (float)(item.Price ?? 0),
+                    Quantity = item.Quantity
                 });
 
         /* Get facturation address */
-        var facturationAddress = orderInfo.GetType().GetProperty("ShippingAdress").GetValue(orderInfo, null);
+        var facturationAddress = orderInfo.ShippingAdress;
         if (facturationAddress != null) receipt.FacturationAddress = facturationAddress;
         /* Get shipping address */
-        var shippingAddress = orderInfo.GetType().GetProperty("FacturationAdress").GetValue(orderInfo, null);
+        var shippingAddress = orderInfo.FacturationAdress;
         if (shippingAddress != null) receipt.ShipmentAddress = shippingAddress;
 
         /* Generate pdf */
