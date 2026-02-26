@@ -28,7 +28,8 @@ public class ExportController(
             {
                 case "SimpleProductSearch":
                     var SearchText = Model.Criteria.GetValue("SearchText").Value;
-                    list = await productRepository.SimpleProductSearch(SearchText, Model.Lang);
+                    var searchResult = await productRepository.SimpleProductSearch(SearchText, Model.Lang, 0, int.MaxValue);
+                    list = searchResult.List;
                     break;
                 case "AdvancedProductSearchByCriteria":
                     var ProductLabel = Model.Criteria.GetValue("ProductLabel").Value;

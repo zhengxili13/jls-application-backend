@@ -21,13 +21,13 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     private readonly IMapper _mapper = mapper;
 
     [HttpGet]
-    public async Task<JsonResult> GetProductMainCategory(string Lang)
+    public async Task<JsonResult> GetProductMainCategory(string lang)
     {
         try
         {
             return Json(new ApiResult
             {
-                Data = await product.GetProductMainCategory(Lang),
+                Data = await product.GetProductMainCategory(lang),
                 Msg = "OK",
                 Success = true
             });
@@ -40,13 +40,13 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> GetProductListBySalesPerformance(string Lang, int Begin, int Step)
+    public async Task<JsonResult> GetProductListBySalesPerformance(string lang, int begin, int step)
     {
         try
         {
             return Json(new ApiResult
             {
-                Data = await product.GetProductListBySalesPerformance(Lang, Begin, Step),
+                Data = await product.GetProductListBySalesPerformance(lang, begin, step),
                 Msg = "OK",
                 Success = true
             });
@@ -60,16 +60,16 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
 
     [HttpGet]
-    public async Task<JsonResult> GetProductByPrice(string Lang, long? MainCategoryId, int Begin, int Step)
+    public async Task<JsonResult> GetProductByPrice(string lang, long? mainCategoryId, int begin, int step)
     {
         try
         {
-            var result = await product.GetProductByPrice(Lang, MainCategoryId);
+            var result = await product.GetProductByPrice(lang, mainCategoryId, begin, step);
 
             return Json(new
             {
-                TotalCount = result.Count,
-                List = result.Skip(Begin * Step).Take(Step).ToList()
+                TotalCount = result.TotalCount,
+                List = result.List
             });
         }
         catch (Exception exc)
@@ -80,13 +80,13 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> GetProductListByPublishDate(string Lang, long? MainCategoryId, int Begin, int Step)
+    public async Task<JsonResult> GetProductListByPublishDate(string lang, long? mainCategoryId, int begin, int step)
     {
         try
         {
             return Json(new ApiResult
             {
-                Data = await product.GetProductListByPublishDate(Lang, MainCategoryId, Begin, Step),
+                Data = await product.GetProductListByPublishDate(lang, mainCategoryId, begin, step),
                 Msg = "OK",
                 Success = true
             });
@@ -99,13 +99,13 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> GetProductSecondCategory(long MainCategoryReferenceId, string Lang)
+    public async Task<JsonResult> GetProductSecondCategory(long mainCategoryReferenceId, string lang)
     {
         try
         {
             return Json(new ApiResult
             {
-                Data = await product.GetProductSecondCategory(MainCategoryReferenceId, Lang),
+                Data = await product.GetProductSecondCategory(mainCategoryReferenceId, lang),
                 Msg = "OK",
                 Success = true
             });
@@ -119,13 +119,13 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
 
     [HttpGet]
-    public async Task<JsonResult> GetProductListBySecondCategory(long SecondCategoryReferenceId, string Lang, int Begin,
-        int Step)
+    public async Task<JsonResult> GetProductListBySecondCategory(long secondCategoryReferenceId, string lang, int begin,
+        int step)
     {
         try
         {
             var productList =
-                await product.GetProductListBySecondCategory(SecondCategoryReferenceId, Lang, Begin, Step);
+                await product.GetProductListBySecondCategory(secondCategoryReferenceId, lang, begin, step);
 
             return Json(new ApiResult
             {
@@ -146,24 +146,18 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
 
     [HttpGet]
-    public async Task<JsonResult> GetProductCommentListByCriteria(long? ProductId, long? UserId, int Begin, int Step,
-        string Lang)
+    public async Task<JsonResult> GetProductCommentListByCriteria(long? productId, long? userId, int begin, int step,
+        string lang)
     {
         try
         {
-            var productComments = await product.GetProductCommentListByCriteria(ProductId, UserId, Lang);
-
-            var list = new List<ProductCommentViewModel>();
-            if (Begin != -1 && Step != -1)
-                list = productComments.Skip(Begin * Step).Take(Step).ToList();
-            else
-                list = productComments.ToList();
+            var productComments = await product.GetProductCommentListByCriteria(productId, userId, lang, begin, step);
             return Json(new ApiResult
             {
                 Data = new
                 {
-                    ProductCommentListData = list,
-                    TotalCount = productComments.Count()
+                    ProductCommentListData = productComments.List,
+                    TotalCount = productComments.TotalCount
                 },
                 Msg = "OK",
                 Success = true
@@ -178,14 +172,14 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
 
     [HttpGet]
-    public async Task<JsonResult> GetPromotionProduct(int Begin, int Step, string Lang)
+    public async Task<JsonResult> GetPromotionProduct(int begin, int step, string lang)
     {
         try
         {
-            var productList = await product.GetPromotionProduct(Lang);
+            var productList = await product.GetPromotionProduct(lang);
             var list = new List<dynamic>();
-            if (Begin != -1 && Step != -1)
-                list = productList.Skip(Begin * Step).Take(Step).ToList();
+            if (begin != -1 && step != -1)
+                list = productList.Skip(begin * step).Take(step).ToList();
             else
                 list = productList.ToList();
             return Json(new
@@ -207,7 +201,7 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     {
         try
         {
-            return Json(await product.GetProductInfoByReferenceIds(criteria.ReferenceIds, criteria.Lang));
+            return Json(await product.GetProductInfoByReferenceIds(criteria.ReferenceIds, criteria.lang));
         }
         catch (Exception exc)
         {
@@ -217,15 +211,15 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> SimpleProductSearch(string SearchText, string Lang, int Begin, int Step)
+    public async Task<JsonResult> SimpleProductSearch(string searchText, string lang, int begin, int step)
     {
         try
         {
-            var result = await product.SimpleProductSearch(SearchText, Lang);
+            var result = await product.SimpleProductSearch(searchText, lang, begin, step);
             return Json(new
             {
-                TotalCount = result.Count,
-                List = result.Skip(Begin * Step).Take(Step).ToList()
+                TotalCount = result.TotalCount,
+                List = result.List
             });
         }
         catch (Exception exc)
@@ -240,13 +234,13 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     {
         try
         {
-            var result = await product.AdvancedProductSearchClient(criteria.SearchText, criteria.MainCategory,
+            var result = await product.AdvancedProductSearchClient(criteria.searchText, criteria.MainCategory,
                 criteria.SecondCategory, criteria.PriceIntervalLower, criteria.PriceIntervalUpper, criteria.MinQuantity,
-                criteria.OrderBy, criteria.Lang);
+                criteria.OrderBy, criteria.lang, criteria.begin, criteria.step);
             return Json(new
             {
-                TotalCount = result.Count,
-                List = result.Skip(criteria.Begin * criteria.Step).Take(criteria.Step).ToList()
+                TotalCount = result.TotalCount,
+                List = result.List
             });
         }
         catch (Exception exc)
@@ -257,15 +251,15 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> GetProductListByNote(string Lang, int Begin, int Step)
+    public async Task<JsonResult> GetProductListByNote(string lang, int begin, int step)
     {
         try
         {
-            var result = await product.GetProductListByNote(Lang);
+            var result = await product.GetProductListByNote(lang, begin, step);
             return Json(new
             {
-                TotalCount = result.Count(),
-                List = result.Skip(Begin * Step).Take(Step).ToList()
+                TotalCount = result.TotalCount,
+                List = result.List
             });
         }
         catch (Exception exc)
@@ -277,11 +271,11 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
 
     [HttpGet]
-    public async Task<JsonResult> GetProductById(long ProductId, string Lang, int? UserId)
+    public async Task<JsonResult> GetProductById(long productId, string lang, int? userId)
     {
         try
         {
-            var data = await product.GetProductById(ProductId, Lang, UserId);
+            var data = await product.GetProductById(productId, lang, userId);
             return Json(data);
         }
         catch (Exception e)
@@ -293,19 +287,15 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
 
     [HttpGet]
-    public async Task<JsonResult> GetFavoriteListByUserId(int UserId, string Lang, int? Step, int? Begin)
+    public async Task<JsonResult> GetFavoriteListByUserId(int userId, string lang, int? step, int? begin)
     {
         try
         {
-            var favoriteProductList = await product.GetFavoriteListByUserId(UserId, Lang);
-            var totalCount = favoriteProductList.Count();
-            var result = favoriteProductList;
-            if (Step != null && Begin != null)
-                result = favoriteProductList.Skip((int)Begin * (int)Step).Take((int)Step).ToList();
+            var result = await product.GetFavoriteListByUserId(userId, lang, begin ?? 0, step ?? 10);
             return Json(new
             {
-                TotalCount = totalCount,
-                List = result
+                TotalCount = result.TotalCount,
+                List = result.List
             });
         }
         catch (Exception exc)
@@ -316,11 +306,11 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> AddIntoProductFavoriteList(int UserId, long ProductId, bool? IsFavorite)
+    public async Task<JsonResult> AddIntoProductFavoriteList(int userId, long productId, bool? isFavorite)
     {
         try
         {
-            var favoriteProductList = await product.AddIntoProductFavoriteList(UserId, ProductId, IsFavorite);
+            var favoriteProductList = await product.AddIntoProductFavoriteList(userId, productId, isFavorite);
             return Json(favoriteProductList);
         }
         catch (Exception exc)
@@ -355,12 +345,12 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
     /* Only for web site */
     [HttpGet]
-    public async Task<JsonResult> GetCategoryForWebSite(int NumberOfCateogry, string Lang)
+    public async Task<JsonResult> GetCategoryForWebSite(int numberOfCategory, string lang)
     {
         try
         {
-            var result = await product.GetCategoryForWebSite(Lang);
-            if (NumberOfCateogry != -1) result = result.Take(NumberOfCateogry).ToList();
+            var result = await product.GetCategoryForWebSite(lang);
+            if (numberOfCategory != -1) result = result.Take(numberOfCategory).ToList();
             return Json(result);
         }
         catch (Exception exc)
@@ -371,15 +361,15 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
     }
 
     [HttpGet]
-    public async Task<JsonResult> GetMainPageForWebSite(string Lang)
+    public async Task<JsonResult> GetMainPageForWebSite(string lang)
     {
-        var Step = 10;
-        var Begin = 0;
+        var step = 10;
+        var begin = 0;
         try
         {
-            var productByPublishDate = await product.GetProductListByPublishDate(Lang, null, Begin, Step);
-            var productBySalesPerformance = await product.GetProductListBySalesPerformance(Lang, Begin, Step);
-            var productByPrice = (await product.GetProductByPrice(Lang, null)).Take(Step).ToList();
+            var productByPublishDate = await product.GetProductListByPublishDate(lang, null, begin, step);
+            var productBySalesPerformance = await product.GetProductListBySalesPerformance(lang, begin, step);
+            var productByPrice = (await product.GetProductByPrice(lang, null, 0, step)).List;
 
 
             return Json(new
@@ -404,22 +394,22 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
         }
 
         public List<long> ReferenceIds { get; set; }
-        public string Lang { get; set; }
+        public string lang { get; set; }
     }
 
 
     public class AdvancedSearchCriteria
     {
-        public string SearchText { get; set; }
+        public string searchText { get; set; }
         public long? MainCategory { get; set; }
         public long? SecondCategory { get; set; }
         public int? PriceIntervalLower { get; set; }
         public int? PriceIntervalUpper { get; set; }
         public int? MinQuantity { get; set; }
         public string OrderBy { get; set; }
-        public string Lang { get; set; }
+        public string lang { get; set; }
 
-        public int Begin { get; set; }
-        public int Step { get; set; }
+        public int begin { get; set; }
+        public int step { get; set; }
     }
 }

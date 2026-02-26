@@ -19,13 +19,13 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
      * Mobile Zoom
      */
     // todo adapt mobile and admin
-    public async Task<List<ProductListData>> GetProductInfoByReferenceIds(List<long> referenceIds, string lang)
+    public async Task<List<ProductListData>> GetProductInfoByReferenceIds(List<long> ReferenceIds, string Lang)
     {
         var result = from ri in db.ReferenceItem
             join rc in db.ReferenceCategory on ri.ReferenceCategoryId equals rc.Id
             join rl in db.ReferenceLabel on ri.Id equals rl.ReferenceItemId
             join product in db.Product on ri.Id equals product.ReferenceItemId
-            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == lang && referenceIds.Contains(ri.Id)
+            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == Lang && ReferenceIds.Contains(ri.Id)
             select new ProductListData
             {
                 ProductId = product.Id,
@@ -52,15 +52,15 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
         return await result.ToListAsync();
     }
 
-    public async Task<ProductListViewModel> GetProductListBySecondCategory(long secondCategoryReferenceId, string lang,
+    public async Task<ProductListViewModel> GetProductListBySecondCategory(long SecondCategoryReferenceId, string Lang,
         int begin, int step)
     {
         var result = from ri in db.ReferenceItem
             join rc in db.ReferenceCategory on ri.ReferenceCategoryId equals rc.Id
             join rl in db.ReferenceLabel on ri.Id equals rl.ReferenceItemId
             join product in db.Product on ri.Id equals product.ReferenceItemId
-            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == lang &&
-                  ri.ParentId == secondCategoryReferenceId
+            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == Lang &&
+                  ri.ParentId == SecondCategoryReferenceId
             select new ProductListData
             {
                 ProductId = product.Id,
@@ -104,7 +104,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
         return 0;
     }
 
-    public async Task<ProductListViewModel> GetProductListByPublishDate(string lang, long? mainCategoryId, int begin,
+    public async Task<ProductListViewModel> GetProductListByPublishDate(string Lang, long? MainCategoryId, int begin,
         int step)
     {
         var result = from ri in db.ReferenceItem
@@ -113,9 +113,9 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join rc in db.ReferenceCategory on ri.ReferenceCategoryId equals rc.Id
             join rl in db.ReferenceLabel on ri.Id equals rl.ReferenceItemId
             join product in db.Product on ri.Id equals product.ReferenceItemId
-            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == lang
+            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == Lang
                   && riSecond.Validity == true && riMain.Validity == true &&
-                  (mainCategoryId == null || riMain.Id == mainCategoryId)
+                  (MainCategoryId == null || riMain.Id == MainCategoryId)
             orderby product.CreatedOn descending, rc.Id, rl.Label
             select new ProductListData
             {
@@ -150,7 +150,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
     }
 
     // By sales performance // todo: by every month
-    public async Task<dynamic> GetProductListBySalesPerformance(string lang, int begin, int step)
+    public async Task<dynamic> GetProductListBySalesPerformance(string Lang, int begin, int step)
     {
         var result = from ri in db.ReferenceItem
             join riSecond in db.ReferenceItem on ri.ParentId equals riSecond.Id
@@ -159,7 +159,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join rl in db.ReferenceLabel on ri.Id equals rl.ReferenceItemId
             join product in db.Product on ri.Id equals product.ReferenceItemId
             from op in db.OrderProduct.Where(p => p.ReferenceId == ri.Id).DefaultIfEmpty()
-            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == lang
+            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == Lang
                   && riSecond.Validity == true && riMain.Validity == true
             group op by new
             {
@@ -215,7 +215,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
         };
     }
 
-    public async Task<dynamic> GetProductListByNote(string lang, int begin, int step)
+    public async Task<List<dynamic>> GetProductListByNote(string Lang)
     {
         var result = from ri in db.ReferenceItem
             join riSecond in db.ReferenceItem on ri.ParentId equals riSecond.Id
@@ -224,7 +224,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join rl in db.ReferenceLabel on ri.Id equals rl.ReferenceItemId
             join product in db.Product on ri.Id equals product.ReferenceItemId
             from pc in db.ProductComment.Where(p => p.ProductId == product.Id).DefaultIfEmpty()
-            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == lang
+            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == Lang
                   && riSecond.Validity == true && riMain.Validity == true
             group pc by new
             {
@@ -248,7 +248,8 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 g.Key.QuantityPerParcel,
                 g.Key.MinQuantity
             };
-        var productList = await result.ToListAsync();
+        var totalCount = await result.CountAsync();
+        var productList = await result.Skip(begin * step).Take(step).ToListAsync<dynamic>();
 
         var result1 = (from r in productList
             select new
@@ -273,10 +274,10 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     select pp.Path).FirstOrDefault(),
                 IsNew = db.CheckNewProduct(r.ProductId)
             }).ToList<dynamic>();
-        return result1;
+        return new { TotalCount = totalCount, List = result1 };
     }
 
-    public async Task<dynamic> GetFavoriteListByUserId(int userId, string lang, int begin, int step)
+    public async Task<List<dynamic>> GetFavoriteListByUserId(int UserId, string Lang)
     {
         var result = await (from ri in db.ReferenceItem
             join riSecond in db.ReferenceItem on ri.ParentId equals riSecond.Id
@@ -285,9 +286,9 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join rl in db.ReferenceLabel on ri.Id equals rl.ReferenceItemId
             join product in db.Product on ri.Id equals product.ReferenceItemId
             join favoriteList in db.ProductFavorite on product.Id equals favoriteList.ProductId
-            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == lang
+            where rc.ShortLabel == "Product" && ri.Validity == true && rl.Lang == Lang
                   && riSecond.Validity == true && riMain.Validity == true && ri.Validity == true &&
-                  favoriteList.UserId == userId
+                  favoriteList.UserId == UserId
             orderby ri.CreatedOn descending, rc.Id, rl.Label
             select new
             {
@@ -311,8 +312,11 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     where path.ProductId == product.Id
                     select path.Path).FirstOrDefault(),
                 IsNew = db.CheckNewProduct(product.Id)
-            }).ToListAsync<dynamic>();
-        return result;
+            });
+        
+        var totalCount = await result.CountAsync();
+        var list = await result.Skip(begin * step).Take(step).ToListAsync<dynamic>();
+        return new { TotalCount = totalCount, List = list };
     }
 
 
@@ -340,14 +344,14 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
         return 0;
     }
 
-    public async Task<List<ProductCategoryViewModel>> GetProductMainCategory(string lang)
+    public async Task<List<ProductCategoryViewModel>> GetProductMainCategory(string Lang)
     {
         var result = await (from ri in db.ReferenceItem
             join riSecond in db.ReferenceItem on ri.ParentId equals riSecond.Id
             join rip in db.ReferenceItem on riSecond.ParentId equals rip.Id
             join rlp in db.ReferenceLabel on rip.Id equals rlp.ReferenceItemId
             join rcp in db.ReferenceCategory on rip.ReferenceCategoryId equals rcp.Id
-            where rcp.ShortLabel == "MainCategory" && rlp.Lang == lang && rip.Validity == true && ri.Validity == true &&
+            where rcp.ShortLabel == "MainCategory" && rlp.Lang == Lang && rip.Validity == true && ri.Validity == true &&
                   riSecond.Validity == true
             group rip by new { rip.Id, rip.Code, rlp.Label }
             into g
@@ -366,14 +370,14 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
         return result;
     }
 
-    public async Task<List<ProductCategoryViewModel>> GetProductSecondCategory(long mainCategoryReferenceId,
-        string lang)
+    public async Task<List<ProductCategoryViewModel>> GetProductSecondCategory(long MainCategoryReferenceId,
+        string Lang)
     {
         var result = await (from ri in db.ReferenceItem
             join rip in db.ReferenceItem on ri.ParentId equals rip.Id
             join rlp in db.ReferenceLabel on rip.Id equals rlp.ReferenceItemId
             join rcp in db.ReferenceCategory on rip.ReferenceCategoryId equals rcp.Id
-            where rcp.ShortLabel == "SecondCategory" && rip.ParentId == mainCategoryReferenceId && rlp.Lang == lang &&
+            where rcp.ShortLabel == "SecondCategory" && rip.ParentId == MainCategoryReferenceId && rlp.Lang == Lang &&
                   rip.Validity == true && ri.Validity == true
             group rip by new { rip.Id, rip.Code, rlp.Label }
             into g
@@ -417,11 +421,12 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
         return result;
     }
 
-    public async Task<dynamic> GetProductCommentListByCriteria(long? productId, long? userId, string lang, int begin, int step)
+    public async Task<List<ProductCommentViewModel>> GetProductCommentListByCriteria(long? ProductId, long? UserId,
+        string Lang)
     {
         var result = await (from pc in db.ProductComment
-            where (productId == null || pc.ProductId == productId)
-                  && (userId == null || pc.UserId == userId)
+            where (ProductId == null || pc.ProductId == ProductId)
+                  && (UserId == null || pc.UserId == UserId)
             orderby pc.CreatedOn
             select new ProductCommentViewModel
             {
@@ -437,15 +442,15 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     select pp.Path).FirstOrDefault(),
                 Label = (from p in db.Product
                     join rl in db.ReferenceLabel on p.ReferenceItemId equals rl.ReferenceItemId
-                    where rl.Lang == lang && p.Id == pc.ProductId
+                    where rl.Lang == Lang && p.Id == pc.ProductId
                     select rl.Label).FirstOrDefault()
             }).ToListAsync();
         return result;
     }
 
 
-    public async Task<List<dynamic>> AdvancedProductSearchByCriteria(string productLabel, long mainCategoryReferenceId,
-        List<long> secondCategoryReferenceId, bool? validity, string lang)
+    public async Task<List<dynamic>> AdvancedProductSearchByCriteria(string ProductLabel, long MainCategoryReferenceId,
+        List<long> SecondCategoryReferenceId, bool? Validity, string Lang)
     {
         var result = await (from rl in db.ReferenceLabel
             join ri in db.ReferenceItem on rl.ReferenceItemId equals ri.Id
@@ -453,11 +458,11 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join p in db.Product on ri.Id equals p.ReferenceItemId
             join riSecond in db.ReferenceItem on ri.ParentId equals riSecond.Id
             join riMain in db.ReferenceItem on riSecond.ParentId equals riMain.Id
-            where (productLabel == "" || rl.Label.Contains(productLabel) || ri.Code.Contains(productLabel))
-                  && (mainCategoryReferenceId == 0 || riMain.Id == mainCategoryReferenceId)
-                  && (secondCategoryReferenceId.Count() == 0 || secondCategoryReferenceId.Contains(riSecond.Id))
-                  && (validity == null || ri.Validity == validity)
-                  && rl.Lang == lang && rc.ShortLabel == "Product"
+            where (ProductLabel == "" || rl.Label.Contains(ProductLabel) || ri.Code.Contains(ProductLabel))
+                  && (MainCategoryReferenceId == 0 || riMain.Id == MainCategoryReferenceId)
+                  && (SecondCategoryReferenceId.Count() == 0 || SecondCategoryReferenceId.Contains(riSecond.Id))
+                  && (Validity == null || ri.Validity == Validity)
+                  && rl.Lang == Lang && rc.ShortLabel == "Product"
             orderby riMain.Id, riSecond.Id
             select new
             {
@@ -495,10 +500,10 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     where path.ProductId == p.Id
                     select path.Path).FirstOrDefault(),
                 MainCategoryLabel = (from rlMain in db.ReferenceLabel
-                    where rlMain.ReferenceItemId == riMain.Id && rlMain.Lang == lang
+                    where rlMain.ReferenceItemId == riMain.Id && rlMain.Lang == Lang
                     select rlMain.Label).FirstOrDefault(),
                 SecondCategoryLabel = (from rlSecond in db.ReferenceLabel
-                    where rlSecond.ReferenceItemId == riSecond.Id && rlSecond.Lang == lang
+                    where rlSecond.ReferenceItemId == riSecond.Id && rlSecond.Lang == Lang
                     select rlSecond.Label).FirstOrDefault()
             }).ToListAsync<dynamic>();
 
@@ -506,7 +511,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
     }
 
 
-    public async Task<List<dynamic>> GetPromotionProduct(string lang)
+    public async Task<List<dynamic>> GetPromotionProduct(string Lang)
     {
         var result = await (from rl in db.ReferenceLabel
             join ri in db.ReferenceItem on rl.ReferenceItemId equals ri.Id
@@ -514,7 +519,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join p in db.Product on ri.Id equals p.ReferenceItemId
             join riSecond in db.ReferenceItem on ri.ParentId equals riSecond.Id
             join riMain in db.ReferenceItem on riSecond.ParentId equals riMain.Id
-            where ri.Validity == true && riMain.Validity == true && riSecond.Validity == true && rl.Lang == lang &&
+            where ri.Validity == true && riMain.Validity == true && riSecond.Validity == true && rl.Lang == Lang &&
                   rc.ShortLabel == "Product"
             orderby p.PreviousPrice == null, p.Price / p.PreviousPrice, rc.Id, rl.Label
             select new
@@ -545,10 +550,10 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     where path.ProductId == p.Id
                     select path.Path).FirstOrDefault(),
                 MainCategoryLabel = (from rlMain in db.ReferenceLabel
-                    where rlMain.ReferenceItemId == riMain.Id && rlMain.Lang == lang
+                    where rlMain.ReferenceItemId == riMain.Id && rlMain.Lang == Lang
                     select rlMain.Label).FirstOrDefault(),
                 SecondCategoryLabel = (from rlSecond in db.ReferenceLabel
-                    where rlSecond.ReferenceItemId == riSecond.Id && rlSecond.Lang == lang
+                    where rlSecond.ReferenceItemId == riSecond.Id && rlSecond.Lang == Lang
                     select rlSecond.Label).FirstOrDefault()
             }).ToListAsync<dynamic>();
 
@@ -557,7 +562,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
 
 
     // For mobile attention : same format as by sales performance... (todo: fix format)
-    public async Task<dynamic> SimpleProductSearch(string searchText, string lang, int begin, int step)
+    public async Task<List<dynamic>> SimpleProductSearch(string SearchText, string Lang)
     {
         var result = await (from riProduct in db.ReferenceItem
             join p in db.Product on riProduct.Id equals p.ReferenceItemId
@@ -567,10 +572,10 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join riMain in db.ReferenceItem on riSecond.ParentId equals riMain.Id
             join rlMain in db.ReferenceLabel on riMain.Id equals rlMain.ReferenceItemId
             where riProduct.Validity == true && riSecond.Validity == true && riMain.Validity == true &&
-                  rlProduct.Lang == lang && rlSecond.Lang == lang && rlMain.Lang == lang &&
-                  (rlMain.Label.Contains(searchText) || rlSecond.Label.Contains(searchText) ||
-                   rlProduct.Label.Contains(searchText) || p.Description.Contains(searchText) ||
-                   riProduct.Code.Contains(searchText))
+                  rlProduct.Lang == Lang && rlSecond.Lang == Lang && rlMain.Lang == Lang &&
+                  (rlMain.Label.Contains(SearchText) || rlSecond.Label.Contains(SearchText) ||
+                   rlProduct.Label.Contains(SearchText) || p.Description.Contains(SearchText) ||
+                   riProduct.Code.Contains(SearchText))
             select new
             {
                 ReferenceId = p.ReferenceItemId,
@@ -589,14 +594,16 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     where pp.ProductId == p.Id
                     select pp.Path).FirstOrDefault(),
                 IsNew = db.CheckNewProduct(p.Id)
-            }).ToListAsync<dynamic>();
+            });
 
-        return result;
+        var totalCount = await result.CountAsync();
+        var list = await result.Skip(begin * step).Take(step).ToListAsync<dynamic>();
+        return new { TotalCount = totalCount, List = list };
     }
 
-    public async Task<dynamic> AdvancedProductSearchClient(string searchText, long? mainCategory,
-        long? secondCategory, int? priceIntervalLower, int? priceIntervalUpper, int? minQuantity, string orderBy,
-        string lang, int begin, int step)
+    public async Task<List<dynamic>> AdvancedProductSearchClient(string SearchText, long? MainCategory,
+        long? SecondCategory, int? PriceIntervalLower, int? PriceIntervalUpper, int? MinQuantity, string OrderBy,
+        string Lang)
     {
         var result = from riProduct in db.ReferenceItem
             join p in db.Product on riProduct.Id equals p.ReferenceItemId
@@ -604,14 +611,14 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join riSecond in db.ReferenceItem on riProduct.ParentId equals riSecond.Id
             join riMain in db.ReferenceItem on riSecond.ParentId equals riMain.Id
             where riProduct.Validity == true && riSecond.Validity == true && riMain.Validity == true &&
-                  rlProduct.Lang == lang
-                  && (searchText == null || searchText == "" || rlProduct.Label.Contains(searchText) ||
-                      p.Description.Contains(searchText) || riProduct.Code.Contains(searchText))
-                  && (mainCategory == null || riMain.Id == mainCategory)
-                  && (secondCategory == null || riSecond.Id == secondCategory)
-                  && (priceIntervalLower == null || p.Price >= priceIntervalLower)
-                  && (priceIntervalUpper == null || p.Price <= priceIntervalUpper)
-                  && (minQuantity == null || p.MinQuantity <= minQuantity)
+                  rlProduct.Lang == Lang
+                  && (SearchText == null || SearchText == "" || rlProduct.Label.Contains(SearchText) ||
+                      p.Description.Contains(SearchText) || riProduct.Code.Contains(SearchText))
+                  && (MainCategory == null || riMain.Id == MainCategory)
+                  && (SecondCategory == null || riSecond.Id == SecondCategory)
+                  && (PriceIntervalLower == null || p.Price >= PriceIntervalLower)
+                  && (PriceIntervalUpper == null || p.Price <= PriceIntervalUpper)
+                  && (MinQuantity == null || p.MinQuantity <= MinQuantity)
             select new
             {
                 Comments = (from pc in db.ProductComment
@@ -639,7 +646,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 IsNew = db.CheckNewProduct(p.Id)
             };
 
-        switch (orderBy)
+        switch (OrderBy)
         {
             case "Default":
                 result = result.OrderBy(p => p.Label);
@@ -664,10 +671,12 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 break;
         }
 
-        return await result.ToListAsync<dynamic>();
+        var totalCount = await result.CountAsync();
+        var list = await result.Skip(begin * step).Take(step).ToListAsync<dynamic>();
+        return new { TotalCount = totalCount, List = list };
     }
 
-    public async Task<dynamic> GetProductByPrice(string lang, long? mainCategoryId, int begin, int step)
+    public async Task<List<dynamic>> GetProductByPrice(string Lang, long? MainCategoryId)
     {
         var result = from riProduct in db.ReferenceItem
             join p in db.Product on riProduct.Id equals p.ReferenceItemId
@@ -675,7 +684,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
             join riSecond in db.ReferenceItem on riProduct.ParentId equals riSecond.Id
             join riMain in db.ReferenceItem on riSecond.ParentId equals riMain.Id
             where riProduct.Validity == true && riSecond.Validity == true && riMain.Validity == true &&
-                  rlProduct.Lang == lang && (mainCategoryId == null || riMain.Id == mainCategoryId)
+                  rlProduct.Lang == Lang && (MainCategoryId == null || riMain.Id == MainCategoryId)
             orderby p.Price
             select new
             {
@@ -701,7 +710,9 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                     select pp.Path).FirstOrDefault()
             };
 
-        return await result.ToListAsync<dynamic>();
+        var totalCount = await result.CountAsync();
+        var list = await result.Skip(begin * step).Take(step).ToListAsync<dynamic>();
+        return new { TotalCount = totalCount, List = list };
     }
 
 
@@ -753,19 +764,19 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
      * Admin Zoom
      */
 
-    public async Task<dynamic> GetProductById(long id, string lang, int? userId)
+    public async Task<dynamic> GetProductById(long Id, string Lang, int? UserId)
     {
         var result = await (from ri in db.ReferenceItem
             join p in db.Product on ri.Id equals p.ReferenceItemId
-            where p.Id == id
+            where p.Id == Id
             select new
             {
                 ProductId = p.Id,
-                IsFavorite = db.ProductFavorite.Where(p => p.ProductId == id).FirstOrDefault() != null ? true : false,
+                IsFavorite = db.ProductFavorite.Where(p => p.ProductId == Id).FirstOrDefault() != null ? true : false,
                 HasBought = (from o in db.OrderInfo
                     join op in db.OrderProduct on o.Id equals op.OrderId
                     join riStatus in db.ReferenceItem on o.StatusReferenceItemId equals riStatus.Id
-                    where o.UserId == userId && riStatus.Code == "OrderStatus_Valid" && op.ReferenceId == ri.Id
+                    where o.UserId == UserId && riStatus.Code == "OrderStatus_Valid" && op.ReferenceId == ri.Id
                     select o).FirstOrDefault() != null
                     ? true
                     : false,
@@ -776,12 +787,12 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 MainCategoryLabel = (from riMain in db.ReferenceItem
                     join riSecond in db.ReferenceItem on riMain.Id equals riSecond.ParentId
                     join rlMain in db.ReferenceLabel on riMain.Id equals rlMain.ReferenceItemId
-                    where riSecond.Id == ri.ParentId && rlMain.Lang == lang
+                    where riSecond.Id == ri.ParentId && rlMain.Lang == Lang
                     select rlMain.Label).FirstOrDefault(),
 
                 SecondCategoryLabel = (from riSecond in db.ReferenceItem
                     join rlSecond in db.ReferenceLabel on riSecond.Id equals rlSecond.ReferenceItemId
-                    where riSecond.Id == ri.ParentId && rlSecond.Lang == lang
+                    where riSecond.Id == ri.ParentId && rlSecond.Lang == Lang
                     select rlSecond.Label).FirstOrDefault(),
                 SecondCategoryId = ri.ParentId,
                 ReferenceCode = ri.Code,
@@ -795,7 +806,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 ReferenceId = ri.Id,
                 p.TaxRateId,
                 Label = (from rl in db.ReferenceLabel
-                    where rl.ReferenceItemId == ri.Id && rl.Lang == lang
+                    where rl.ReferenceItemId == ri.Id && rl.Lang == Lang
                     select rl.Label).FirstOrDefault(),
                 TaxRate = (from riTaxRate in db.ReferenceItem
                     where riTaxRate.Id == p.TaxRateId
@@ -896,12 +907,12 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
     }
 
 
-    public async Task<List<dynamic>> GetCategoryForWebSite(string lang)
+    public async Task<List<dynamic>> GetCategoryForWebSite(string Lang)
     {
         var result = await (from riMain in db.ReferenceItem
             join rlMain in db.ReferenceLabel on riMain.Id equals rlMain.ReferenceItemId
             join rcMain in db.ReferenceCategory on riMain.ReferenceCategoryId equals rcMain.Id
-            where riMain.Validity == true && rcMain.ShortLabel == "MainCategory" && rlMain.Lang == lang
+            where riMain.Validity == true && rcMain.ShortLabel == "MainCategory" && rlMain.Lang == Lang
             orderby riMain.Order
             select new
             {
@@ -913,7 +924,7 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 SecondCategory = (from riSecond in db.ReferenceItem
                     join rlSecond in db.ReferenceLabel on riSecond.Id equals rlSecond.ReferenceItemId
                     join rcSecond in db.ReferenceCategory on riSecond.ReferenceCategoryId equals rcSecond.Id
-                    where riSecond.ParentId == riMain.Id && riSecond.Validity == true && rlSecond.Lang == lang &&
+                    where riSecond.ParentId == riMain.Id && riSecond.Validity == true && rlSecond.Lang == Lang &&
                           rcSecond.ShortLabel == "SecondCategory"
                     orderby riSecond.Order
                     select new

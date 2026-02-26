@@ -7,8 +7,11 @@ namespace JLSDataAccess.Interfaces;
 
 public interface IProductRepository
 {
+    Task<dynamic> AdvancedProductSearchClient(string searchText, long? mainCategory, long? secondCategory,
+        int? priceIntervalLower, int? priceIntervalUpper, int? minQuantity, string orderBy, string lang, int begin, int step);
+
     Task<List<ProductCategoryViewModel>> GetProductMainCategory(string Lang);
-    Task<List<dynamic>> GetProductByPrice(string Lang, long? MainCategoryId);
+    Task<dynamic> GetProductByPrice(string lang, long? mainCategoryId, int begin, int step);
     Task<List<ProductCategoryViewModel>> GetProductSecondCategory(long MainCategoryReferenceId, string Lang);
     Task<List<dynamic>> GetPromotionProduct(string Lang);
 
@@ -25,17 +28,15 @@ public interface IProductRepository
 
     Task<ProductListViewModel> GetProductListByPublishDate(string Lang, long? MainCategoryId, int begin, int step);
 
-    Task<List<dynamic>> GetProductListByNote(string Lang);
+    Task<dynamic> GetProductListByNote(string lang, int begin, int step);
 
     Task<List<ProductComment>> GetAllProductCommentList(int begin, int step);
-    Task<List<ProductCommentViewModel>> GetProductCommentListByCriteria(long? ProductId, long? UserId, string Lang);
+    Task<dynamic> GetProductCommentListByCriteria(long? productId, long? userId, string lang, int begin, int step);
 
     Task<long> RemoveProductCommentById(long ProductCommentId);
 
-    Task<List<dynamic>> SimpleProductSearch(string SearchText, string Lang);
+    Task<dynamic> SimpleProductSearch(string searchText, string lang, int begin, int step);
 
-    Task<List<dynamic>> AdvancedProductSearchClient(string SearchText, long? MainCategory, long? SecondCategory,
-        int? PriceIntervalLower, int? PriceIntervalUpper, int? MinQuantity, string OrderBy, string Lang);
 
     Task<long> SaveProductComment(long ProductId, string Title, string Body, int Level, int UserId);
 
@@ -53,7 +54,7 @@ public interface IProductRepository
     Task<int> RemoveImageById(long id);
 
 
-    Task<List<dynamic>> GetFavoriteListByUserId(int UserId, string Lang);
+    Task<dynamic> GetFavoriteListByUserId(int userId, string lang, int begin, int step);
     Task<long> AddIntoProductFavoriteList(int UserId, long ProductId, bool? IsFavorite);
 
 
