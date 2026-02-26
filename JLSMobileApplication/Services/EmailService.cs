@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Threading.Tasks;
 using JLSApplicationBackend.Heplers;
 using MailKit.Net.Smtp;
+using MailKit.Security;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 
@@ -9,48 +12,47 @@ namespace JLSApplicationBackend.Services;
 public class MailkitEmailService : IEmailService
 {
     private readonly AppSettings _appSettings;
+    private readonly ILogger<MailkitEmailService> _logger;
 
-    public MailkitEmailService(IOptions<AppSettings> appSettings)
+    public MailkitEmailService(IOptions<AppSettings> appSettings, ILogger<MailkitEmailService> logger)
     {
         _appSettings = appSettings.Value;
+        _logger = logger;
     }
 
-    public string SendEmail(string ToEmail, string Subjet, string Message, string AttachmentPath)
+    public async Task<string> SendEmailAsync(string toEmail, string subject, string htmlBody, string attachmentPath = null)
     {
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress("JLS IMPORT", _appSettings.EmailAccount));
+        message.To.Add(MailboxAddress.Parse(toEmail));
+        message.Subject = subject;
+
+        var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
+
+        if (!string.IsNullOrEmpty(attachmentPath))
+            bodyBuilder.Attachments.Add(attachmentPath);
+
+        message.Body = bodyBuilder.ToMessageBody();
+
+        using var client = new SmtpClient();
         try
         {
-            var message = new MimeMessage();
+            await client.ConnectAsync(_appSettings.EmailHost, _appSettings.EmailPort, SecureSocketOptions.SslOnConnect);
+            await client.AuthenticateAsync(_appSettings.EmailAccount, _appSettings.EmailPassword);
+            await client.SendAsync(message);
 
-            var from = new MailboxAddress("JLS IMPORT",
-                _appSettings.EmailAccount);
-            message.From.Add(from);
-
-            var to = new MailboxAddress(ToEmail,
-                ToEmail);
-            message.To.Add(to);
-
-            message.Subject = Subjet;
-            var bodyBuilder = new BodyBuilder();
-            bodyBuilder.HtmlBody = Message;
-
-            if (AttachmentPath != null) bodyBuilder.Attachments.Add(AttachmentPath);
-
-            message.Body = bodyBuilder.ToMessageBody();
-
-
-            var client = new SmtpClient();
-            client.Connect(_appSettings.EmailHost, _appSettings.EmailPort, true);
-            client.Authenticate(_appSettings.EmailAccount, _appSettings.EmailPassword);
-
-            client.Send(message);
-            client.Disconnect(true);
-            client.Dispose();
-
-            return "Email Sent Successfully!"; //todo change to code 
+            _logger.LogInformation("Email sent to {ToEmail} with subject '{Subject}'", toEmail, subject);
+            return "Email Sent Successfully!";
         }
         catch (Exception e)
         {
-            return e.Message; // todo change to code 
+            _logger.LogError(e, "Failed to send email to {ToEmail}", toEmail);
+            return e.Message;
+        }
+        finally
+        {
+            if (client.IsConnected)
+                await client.DisconnectAsync(true);
         }
     }
 }

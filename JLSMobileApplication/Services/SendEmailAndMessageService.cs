@@ -186,7 +186,7 @@ public class SendEmailAndMessageService : ISendEmailAndMessageService
         return 1;
     }
 
-    public void SendQueuedEmails()
+    public async Task SendQueuedEmails()
     {
         var emailsToSend = _db.EmailToSend
             .Where(p => (p.IsSended == false || p.IsSended == null) && !p.ToEmail.Contains("@jls.com"))
@@ -204,13 +204,13 @@ public class SendEmailAndMessageService : ISendEmailAndMessageService
                 email.ToEmail = _appSettings.RedirectEmailTo;
             }
 
-            var sendResult = _email.SendEmail(email.ToEmail, email.Title, email.Body, email.Attachment);
+            var sendResult = await _email.SendEmailAsync(email.ToEmail, email.Title, email.Body, email.Attachment);
             email.IsSended = true;
             email.Message = sendResult;
             _db.Update(email);
         }
 
-        _db.SaveChanges();
+        await _db.SaveChangesAsync();
     }
 
     public async Task<int> PushEmailIntoDb(string toEmail, string title, string body, string attachmentPath)

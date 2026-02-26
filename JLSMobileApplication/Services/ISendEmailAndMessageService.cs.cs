@@ -14,5 +14,5 @@ public interface ISendEmailAndMessageService
     /// <summary>
     /// Dispatches all queued emails in the EmailToSend table. Called by a background job.
     /// </summary>
-    void SendQueuedEmails();
+    Task SendQueuedEmails();
 }

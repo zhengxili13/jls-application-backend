@@ -1,6 +1,8 @@
-﻿namespace JLSApplicationBackend.Services;
+﻿using System.Threading.Tasks;
+
+namespace JLSApplicationBackend.Services;
 
 public interface IEmailService
 {
-    string SendEmail(string ToEmail, string Subjet, string Message, string AttachmentPath);
+    Task<string> SendEmailAsync(string toEmail, string subject, string htmlBody, string attachmentPath = null);
 }
