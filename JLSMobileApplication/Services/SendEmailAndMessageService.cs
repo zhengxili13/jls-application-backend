@@ -234,7 +234,7 @@ public class SendEmailAndMessageService : ISendEmailAndMessageService
         await _db.SaveChangesAsync();
     }
 
-    public async Task<int> PushEmailIntoDb(string toEmail, string title, string body, string attachmentPath)
+    private async Task<int> PushEmailIntoDb(string toEmail, string title, string body, string attachmentPath)
     {
         var email = new EmailToSend
         {

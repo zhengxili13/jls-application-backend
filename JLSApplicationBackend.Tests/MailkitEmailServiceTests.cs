@@ -13,6 +13,7 @@ public class MailkitEmailServiceTests
 {
     private IOptions<AppSettings> _appSettings;
     private Mock<ILogger<MailkitEmailService>> _mockLogger;
+    private Mock<ICloudflareR2Service> _mockDriveService;
 
     [SetUp]
     public void Setup()
@@ -25,6 +26,7 @@ public class MailkitEmailServiceTests
             EmailPort = 465
         });
         _mockLogger = new Mock<ILogger<MailkitEmailService>>();
+        _mockDriveService = new Mock<ICloudflareR2Service>();
     }
 
     // ─────────────────── Construction Tests ───────────────────
@@ -32,7 +34,7 @@ public class MailkitEmailServiceTests
     [Test]
     public void Constructor_ShouldNotThrow_WithValidSettings()
     {
-        Assert.DoesNotThrow(() => new MailkitEmailService(_appSettings, _mockLogger.Object));
+        Assert.DoesNotThrow(() => new MailkitEmailService(_appSettings, _mockLogger.Object, _mockDriveService.Object));
     }
 
     // ─────────────────── SendEmailAsync Tests ───────────────────
@@ -52,7 +54,7 @@ public class MailkitEmailServiceTests
             EmailHost = "localhost",   // no SMTP running here
             EmailPort = 19999         // unlikely port
         });
-        var service = new MailkitEmailService(badSettings, _mockLogger.Object);
+        var service = new MailkitEmailService(badSettings, _mockLogger.Object, _mockDriveService.Object);
 
         // Act
         var result = await service.SendEmailAsync("recipient@test.com", "Test Subject", "<p>Hello</p>");
@@ -72,7 +74,7 @@ public class MailkitEmailServiceTests
             EmailHost = "localhost",
             EmailPort = 19999
         });
-        var service = new MailkitEmailService(badSettings, _mockLogger.Object);
+        var service = new MailkitEmailService(badSettings, _mockLogger.Object, _mockDriveService.Object);
 
         await service.SendEmailAsync("recipient@test.com", "Test", "<p>Hi</p>");
 
@@ -97,7 +99,7 @@ public class MailkitEmailServiceTests
             EmailHost = "localhost",
             EmailPort = 19999
         });
-        var service = new MailkitEmailService(badSettings, _mockLogger.Object);
+        var service = new MailkitEmailService(badSettings, _mockLogger.Object, _mockDriveService.Object);
 
         // Act - should gracefully fail (connection) but NOT throw due to null attachment
         var result = await service.SendEmailAsync("recipient@test.com", "Test", "<p>Hi</p>", null);
@@ -115,7 +117,7 @@ public class MailkitEmailServiceTests
             EmailHost = "localhost",
             EmailPort = 19999
         });
-        var service = new MailkitEmailService(badSettings, _mockLogger.Object);
+        var service = new MailkitEmailService(badSettings, _mockLogger.Object, _mockDriveService.Object);
 
         // Empty string attachment should be treated the same as null
         var result = await service.SendEmailAsync("recipient@test.com", "Test", "<p>Hi</p>", "");
@@ -128,7 +130,7 @@ public class MailkitEmailServiceTests
     [Test]
     public void MailkitEmailService_ShouldImplementIEmailService()
     {
-        var service = new MailkitEmailService(_appSettings, _mockLogger.Object);
+        var service = new MailkitEmailService(_appSettings, _mockLogger.Object, _mockDriveService.Object);
         Assert.That(service, Is.InstanceOf<IEmailService>());
     }
 }

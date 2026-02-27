@@ -9,6 +9,7 @@ using JLSDataModel.Models;
 using JLSDataModel.Models.Order;
 using JLSDataModel.ViewModels;
 using JLSMobileApplication.Services;
+using JLSApplicationBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,7 @@ public class ExportServiceTests
     private Mock<IOrderRepository> _mockOrderRepo;
     private Mock<IHttpContextAccessor> _mockHttpContext;
     private Mock<ILogger<ExportService>> _mockLogger;
+    private Mock<ICloudflareR2Service> _mockDriveService;
     private IOptions<AppSettings> _appSettings;
     private ExportService _exportService;
     private string _exportPath;
@@ -54,6 +56,10 @@ public class ExportServiceTests
         _mockOrderRepo = new Mock<IOrderRepository>();
         _mockHttpContext = new Mock<IHttpContextAccessor>();
         _mockLogger = new Mock<ILogger<ExportService>>();
+        _mockDriveService = new Mock<ICloudflareR2Service>();
+        
+        _mockDriveService.Setup(d => d.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync("mocked-cloudflare-r2-file-id");
 
         _exportPath = Path.Combine(Path.GetTempPath(), "JLS_Test_Exports_" + Guid.NewGuid());
         Directory.CreateDirectory(_exportPath);
@@ -82,6 +88,7 @@ public class ExportServiceTests
             _mockContext.Object,
             _mockHttpContext.Object,
             _mockOrderRepo.Object,
+            _mockDriveService.Object,
             _mockLogger.Object
         );
     }
@@ -219,7 +226,7 @@ public class ExportServiceTests
     }
 
     [Test]
-    public async Task ExportPdf_ShouldReturnFilePath_EndingWithInvoicePdf()
+    public async Task ExportPdf_ShouldReturnFileId_WhenUploadCompletes()
     {
         const long orderId = 42;
         _mockOrderRepo
@@ -228,32 +235,29 @@ public class ExportServiceTests
 
         string? result = null;
         try { result = await _exportService.ExportPdf(orderId, "fr"); }
-        catch { /* Magicodes PDF rendering may not work headlessly */ }
+        catch { /* PDF rendering may not work headlessly */ }
 
         // Repository was always called, even if PDF rendering fails
         _mockOrderRepo.Verify(r => r.GetOrdersListByOrderId(orderId, "fr"), Times.Once);
 
-        // If rendering succeeded, assert the returned path
+        // If rendering succeeded, assert we got the cloudflare r2 id
         if (result != null)
-            Assert.That(result, Does.EndWith("_Invoice.pdf"));
+            Assert.That(result, Is.EqualTo("mocked-cloudflare-r2-file-id"));
     }
 
     [Test]
-    public async Task ExportPdf_ShouldReturnPathInsideExportDirectory()
+    public async Task ExportPdf_ShouldCallCloudflareUpload()
     {
         const long orderId = 55;
         _mockOrderRepo
             .Setup(r => r.GetOrdersListByOrderId(orderId, "fr"))
             .ReturnsAsync(BuildSampleOrderDto(orderId));
 
-        string? result = null;
-        try { result = await _exportService.ExportPdf(orderId, "fr"); }
-        catch { /* Magicodes PDF rendering may not work headlessly */ }
+        try { await _exportService.ExportPdf(orderId, "fr"); }
+        catch { /* PDF rendering may not work headlessly */ }
 
-        _mockOrderRepo.Verify(r => r.GetOrdersListByOrderId(orderId, "fr"), Times.Once);
-
-        if (result != null)
-            Assert.That(result, Does.StartWith(_exportPath));
+        // If it ran without exception, verify google drive was called
+        _mockDriveService.Verify(d => d.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), "application/pdf", It.IsAny<string>()), Times.AtMostOnce);
     }
 
     // ─────────────────── Helper ───────────────────

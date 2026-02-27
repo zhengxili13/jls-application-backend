@@ -29,6 +29,7 @@ public class ExportService(
     JlsDbContext context,
     IHttpContextAccessor httpContextAccessor,
     IOrderRepository orderRepository,
+    ICloudflareR2Service cloudflareR2Service,
     ILogger<ExportService> logger)
     : IExportService
 {
@@ -148,7 +149,7 @@ public class ExportService(
             for (var columnNum = 0; columnNum < targetCoulmnsWithOrder.Count; columnNum++)
             {
                 var columnWidth = (int)sheet.GetColumnWidth(columnNum) / 256;
-                // 5为开始修改的行数，默认为0行开始
+                // 5 is the starting row index for modification, default is 0
                 for (var rowNum = 0; rowNum <= sheet.LastRowNum; rowNum++)
                 {
                     var currentRow = sheet.GetRow(rowNum);
@@ -181,9 +182,7 @@ public class ExportService(
         try
         {
             /* File name */
-            var fileName = Path.Combine(_appSettings.ExportPath, $"{DateTime.Now:yyyyMMdd_HHmmss}_Invoice.pdf");
-
-
+            var fileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_Invoice_{OrderId}.pdf";
 
             /* GetOrderInfo */
             var orderInfo = await orderRepository.GetOrdersListByOrderId(OrderId, Lang);
@@ -193,9 +192,17 @@ public class ExportService(
 
             /* Generate pdf */
             var document = new ReceiptDocument(receipt, "Commande");
-            document.GeneratePdf(fileName);
+            var pdfBytes = document.GeneratePdf();
 
-            return fileName;
+            // Upload to Cloudflare R2
+            string fileId;
+            using (var stream = new MemoryStream(pdfBytes))
+            {
+                fileId = await cloudflareR2Service.UploadFileAsync(stream, Path.GetFileName(fileName), "application/pdf", "Exports");
+            }
+
+            // Return the Cloudflare R2 Key instead of a local path
+            return fileId;
         }
         catch (Exception e)
         {

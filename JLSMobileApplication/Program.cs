@@ -81,6 +81,8 @@ try
     services.AddTransient<IOrderServices, OrderServices>();
     services.AddTransient<IEmailService, MailkitEmailService>();
     services.AddTransient<IExportService, ExportService>();
+    services.AddTransient<ICloudflareR2Service, CloudflareR2Service>();
+    services.AddTransient<IImageService, ImageService>();
     services.AddTransient<ISendEmailAndMessageService, SendEmailAndMessageService>();
     
     // Register Scriban renderer and pass the path to the HTML templates

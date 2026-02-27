@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using JLSApplicationBackend.Heplers;
 using MailKit.Net.Smtp;
@@ -13,11 +14,13 @@ public class MailkitEmailService : IEmailService
 {
     private readonly AppSettings _appSettings;
     private readonly ILogger<MailkitEmailService> _logger;
+    private readonly ICloudflareR2Service _cloudflareR2Service;
 
-    public MailkitEmailService(IOptions<AppSettings> appSettings, ILogger<MailkitEmailService> logger)
+    public MailkitEmailService(IOptions<AppSettings> appSettings, ILogger<MailkitEmailService> logger, ICloudflareR2Service cloudflareR2Service)
     {
         _appSettings = appSettings.Value;
         _logger = logger;
+        _cloudflareR2Service = cloudflareR2Service;
     }
 
     public async Task<string> SendEmailAsync(string toEmail, string subject, string htmlBody, string attachmentPath = null)
@@ -30,7 +33,18 @@ public class MailkitEmailService : IEmailService
         var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
 
         if (!string.IsNullOrEmpty(attachmentPath))
-            bodyBuilder.Attachments.Add(attachmentPath);
+        {
+            try
+            {
+                // attachmentPath is assumed to be in the "folder/filename" format (e.g., "Exports/123.pdf")
+                var driveFile = await _cloudflareR2Service.DownloadFileAsync(attachmentPath);
+                bodyBuilder.Attachments.Add(driveFile.FileName, driveFile.FileStream.ToArray());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not load attachment from Cloudflare R2 for path/Key: {AttachmentPath}", attachmentPath);
+            }
+        }
 
         message.Body = bodyBuilder.ToMessageBody();
 

@@ -8,6 +8,7 @@ using JLSDataModel.Models;
 using JLSDataModel.Models.Order;
 using JLSDataModel.ViewModels;
 using JLSMobileApplication.Services;
+using JLSApplicationBackend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,6 +24,7 @@ public class ExportService_PdfDataTests
     private Mock<IOrderRepository> _mockOrderRepo;
     private Mock<IHttpContextAccessor> _mockHttpContext;
     private Mock<ILogger<ExportService>> _mockLogger;
+    private Mock<ICloudflareR2Service> _mockDriveService;
     private IOptions<AppSettings> _appSettings;
     private ExportService _exportService;
 
@@ -33,6 +35,7 @@ public class ExportService_PdfDataTests
         _mockOrderRepo = new Mock<IOrderRepository>();
         _mockHttpContext = new Mock<IHttpContextAccessor>();
         _mockLogger = new Mock<ILogger<ExportService>>();
+        _mockDriveService = new Mock<ICloudflareR2Service>();
 
         _appSettings = Options.Create(new AppSettings
         {
@@ -45,6 +48,7 @@ public class ExportService_PdfDataTests
             _mockContext.Object,
             _mockHttpContext.Object,
             _mockOrderRepo.Object,
+            _mockDriveService.Object,
             _mockLogger.Object
         );
     }

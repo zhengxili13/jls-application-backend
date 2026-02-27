@@ -33,4 +33,10 @@ public class AppSettings
     public string ImagePath { get; set; }
 
     public string RedirectEmailTo { get; set; }
+
+    // Cloudflare R2 Properties
+    public string CloudflareR2AccessKey { get; set; }
+    public string CloudflareR2SecretKey { get; set; }
+    public string CloudflareR2AccountId { get; set; }
+    public string CloudflareR2BucketName { get; set; }
 }

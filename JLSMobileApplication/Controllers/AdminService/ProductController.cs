@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using JLSApplicationBackend.Services;
 
 namespace JLSMobileApplication.Controllers.AdminService;
 
@@ -21,6 +22,7 @@ namespace JLSMobileApplication.Controllers.AdminService;
 [ApiController]
 public class ProductController(
     IOptions<AppSettings> appSettings,
+    IImageService imageService,
     IProductRepository productRepository,
     IReferenceRepository referenceRepository,
     JlsDbContext context,
@@ -36,11 +38,10 @@ public class ProductController(
 
         if (image == null) return 0;
 
-        var imagePath = Path.Combine(_appSettings.ImagePath, image.Path); // todo place into the configuration
-
         try
         {
-            if (System.IO.File.Exists(imagePath)) System.IO.File.Delete(imagePath);
+            // Removed local file deletion, calling ImageService to delete from Cloudflare R2
+            await imageService.DeleteImageAsync(image.Path);
 
             var PhotoId = image.Id;
             context.ProductPhotoPath.Remove(image);
@@ -185,35 +186,17 @@ public class ProductController(
     {
         try
         {
-            StringValues ProductId = "";
-
             var file = Request.Form.Files[0];
+            Request.Form.TryGetValue("ProductId", out var productIdString);
 
-            Request.Form.TryGetValue("ProductId", out ProductId); // get ProductId todo change 
-
-
-            var folderName = Path.Combine("Images", ProductId.ToString()); // todo : place into the configruation file
-            var pathToSave = Path.Combine(_appSettings.ImagePath, folderName);
-
-            var di = Directory.CreateDirectory(pathToSave); // 创建路径
-
-            if (file.Length > 0)
+            if (file.Length > 0 && long.TryParse(productIdString, out long productId))
             {
-                var fileName = DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" +
-                               ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
+                // Upload image directly to Cloudflare R2 without keeping it on local disk
+                var dbPath = await imageService.UploadProductImageAsync(productId, file);
 
-                var fullPath = Path.Combine(pathToSave, fileName);
-                var dbPath = Path.Combine(folderName, fileName);
-
-
-                using (var stream = new FileStream(fullPath, FileMode.Create))
-                {
-                    file.CopyTo(stream);
-                }
-
-                //SavePhotoPath
-                await productRepository.SavePhotoPath(long.Parse(ProductId), dbPath);
-                return Ok(new { dbPath }); // todo : 改变返回值
+                // Save db path (folder/filename) to db as usual
+                await productRepository.SavePhotoPath(productId, dbPath);
+                return Ok(new { dbPath });
             }
 
             return BadRequest();
