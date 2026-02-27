@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
+using Hangfire;
 using JLSApplicationBackend.Heplers;
 using JLSApplicationBackend.Services.EmailTemplateModel;
 using JLSDataAccess;
@@ -213,6 +214,26 @@ public class SendEmailAndMessageService : ISendEmailAndMessageService
         await _db.SaveChangesAsync();
     }
 
+    public async Task SendSingleEmailAsync(long emailId)
+    {
+        var email = await _db.EmailToSend.FindAsync(emailId);
+        if (email == null || email.IsSended == true)
+            return;
+
+        // Redirect all outbound emails to a test address when configured (non-production)
+        if (!string.IsNullOrEmpty(_appSettings.RedirectEmailTo))
+        {
+            email.Title = $"{email.Title} ({email.ToEmail})";
+            email.ToEmail = _appSettings.RedirectEmailTo;
+        }
+
+        var sendResult = await _email.SendEmailAsync(email.ToEmail, email.Title, email.Body, email.Attachment);
+        email.IsSended = true;
+        email.Message = sendResult;
+        _db.Update(email);
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<int> PushEmailIntoDb(string toEmail, string title, string body, string attachmentPath)
     {
         var email = new EmailToSend
@@ -226,6 +247,11 @@ public class SendEmailAndMessageService : ISendEmailAndMessageService
 
         await _db.AddAsync(email);
         await _db.SaveChangesAsync();
+
+        // Elegance Fix: Immediately enqueue a background job to process this specific email
+        // This provides near-instant delivery without waiting for the minute poll.
+        BackgroundJob.Enqueue<ISendEmailAndMessageService>(s => s.SendSingleEmailAsync(email.Id));
+
         return 1;
     }
 }

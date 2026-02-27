@@ -12,7 +12,12 @@ public interface ISendEmailAndMessageService
     Task<int> ClientMessageToAdminAsync(string clientEmail, string message);
 
     /// <summary>
-    /// Dispatches all queued emails in the EmailToSend table. Called by a background job.
+    /// Dispatches all queued emails (Safety Net).
     /// </summary>
     Task SendQueuedEmails();
+
+    /// <summary>
+    /// Dispatches a specific email by ID. Used for immediate background jobs.
+    /// </summary>
+    Task SendSingleEmailAsync(long emailId);
 }
