@@ -237,11 +237,7 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
             var result = await product.AdvancedProductSearchClient(criteria.searchText, criteria.MainCategory,
                 criteria.SecondCategory, criteria.PriceIntervalLower, criteria.PriceIntervalUpper, criteria.MinQuantity,
                 criteria.OrderBy, criteria.lang, criteria.begin, criteria.step);
-            return Json(new
-            {
-                TotalCount = result.TotalCount,
-                List = result.List
-            });
+            return Json(result);
         }
         catch (Exception exc)
         {
@@ -292,11 +288,7 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
         try
         {
             var result = await product.GetFavoriteListByUserId(userId, lang, begin ?? 0, step ?? 10);
-            return Json(new
-            {
-                TotalCount = result.TotalCount,
-                List = result.List
-            });
+            return Json(result);
         }
         catch (Exception exc)
         {
@@ -345,12 +337,12 @@ public class ProductController(IMapper mapper, IProductRepository product, ILogg
 
     /* Only for web site */
     [HttpGet]
-    public async Task<JsonResult> GetCategoryForWebSite(int numberOfCategory, string lang)
+    public async Task<JsonResult> GetCategoryForWebSite([FromQuery]int numberOfCateogry, [FromQuery]string lang)
     {
         try
         {
             var result = await product.GetCategoryForWebSite(lang);
-            if (numberOfCategory != -1) result = result.Take(numberOfCategory).ToList();
+            if (numberOfCateogry != -1) result = result.Take(numberOfCateogry).ToList();
             return Json(result);
         }
         catch (Exception exc)

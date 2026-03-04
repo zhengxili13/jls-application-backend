@@ -468,9 +468,9 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 ReferenceId = ri.Id,
                 ProductId = p.Id,
                 rl.Label,
-                Translations = from rl1 in db.ReferenceLabel
+                Translations = (from rl1 in db.ReferenceLabel
                     where rl1.ReferenceItemId == ri.Id
-                    select rl1,
+                    select rl1).ToList(),
                 ri.Code,
                 ri.Validity,
                 CategoryId = rc.Id,
@@ -591,7 +591,10 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 IsNew = db.CheckNewProduct(p.Id)
             }).ToListAsync<dynamic>();
 
-        return result;
+        var totalCount = result.Count;
+        var paginatedList = result.Skip(begin * step).Take(step).ToList();
+        
+        return new { TotalCount = totalCount, List = paginatedList };
     }
 
     public async Task<dynamic> AdvancedProductSearchClient(string searchText, long? mainCategory,
@@ -664,7 +667,11 @@ public class ProductRepository(JlsDbContext context, ILogger<ProductRepository> 
                 break;
         }
 
-        return await result.ToListAsync<dynamic>();
+        var allRecords = await result.ToListAsync<dynamic>();
+        var totalCount = allRecords.Count;
+        var paginatedList = allRecords.Skip(begin * step).Take(step).ToList();
+
+        return new { TotalCount = totalCount, List = paginatedList };
     }
 
     public async Task<dynamic> GetProductByPrice(string lang, long? mainCategoryId, int begin, int step)

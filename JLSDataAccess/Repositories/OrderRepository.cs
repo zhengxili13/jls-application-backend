@@ -349,11 +349,10 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
                 FacturationAdress = context.Adress.Where(p => p.Id == o.FacturationAdressId).FirstOrDefault(),
                 ShippingAdress = context.Adress.Where(p => p.Id == o.ShippingAdressId).FirstOrDefault(),
                 ProductList = (from op in context.OrderProduct
+                    where op.OrderId == o.Id
                     join p in context.Product on op.ReferenceId equals p.ReferenceItemId
-                    join riProduct in context.ReferenceItem on p.ReferenceItemId equals riProduct.Id
-                    join rc in context.ReferenceCategory on riProduct.ReferenceCategoryId equals rc.Id
-                    join rl in context.ReferenceLabel on riProduct.Id equals rl.ReferenceItemId
-                    where op.OrderId == o.Id && rc.ShortLabel == "Product" && rl.Lang == Lang
+                    join riProduct in context.ReferenceItem on op.ReferenceId equals riProduct.Id
+                    from rl in context.ReferenceLabel.Where(x => x.ReferenceItemId == riProduct.Id && x.Lang == Lang).DefaultIfEmpty()
                     select new JLSDataModel.ViewModels.OrderProductDto
                     {
                         UnityQuantity = op.Colissage,
@@ -364,7 +363,7 @@ public class OrderRepository(JlsDbContext context, ILogger<OrderRepository> logg
                         ParentId = riProduct.ParentId,
                         Value = riProduct.Value,
                         Order = riProduct.Order,
-                        Label = rl.Label,
+                        Label = rl == null ? riProduct.Code : rl.Label,
                         Price = op.UnitPrice,
                         TotalPrice = op.TotalPrice,
                         IsModifiedPriceOrBox =

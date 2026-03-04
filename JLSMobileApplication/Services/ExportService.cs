@@ -11,15 +11,12 @@ using JLSApplicationBackend.Services;
 using JLSDataAccess;
 using JLSDataAccess.Interfaces;
 using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
-using System.Reflection;
 using JLSDataModel.ViewModels;
 
 namespace JLSMobileApplication.Services;
@@ -33,6 +30,8 @@ public class ExportService(
     ILogger<ExportService> logger)
     : IExportService
 {
+    private static readonly System.Net.Http.HttpClient _httpClient = new();
+
     static ExportService()
     {
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
@@ -188,7 +187,7 @@ public class ExportService(
             var orderInfo = await orderRepository.GetOrdersListByOrderId(OrderId, Lang);
 
             /* Map to ReceiptInfo model */
-            var receipt = BuildReceiptInfo(orderInfo);
+            var receipt = await BuildReceiptInfo(orderInfo);
 
             /* Generate pdf */
             var document = new ReceiptDocument(receipt, "Commande");
@@ -211,7 +210,7 @@ public class ExportService(
         }
     }
 
-    public ReceiptInfo BuildReceiptInfo(OrderFullDetailDto orderInfo)
+    public async Task<ReceiptInfo> BuildReceiptInfo(OrderFullDetailDto orderInfo)
     {
         var receipt = new ReceiptInfo();
 
@@ -247,22 +246,51 @@ public class ExportService(
         var productList = orderInfo.ProductList;
         if (productList != null)
         {
+            var tasks = new List<Task>();
             foreach (var item in productList)
             {
-                receipt.ProductList.Add(new ReceiptProductList
+                var receiptProduct = new ReceiptProductList
                 {
                     Code = item.Code,
                     Colissage = item.QuantityPerBox ?? 0,
                     QuantityPerParcel = item.QuantityPerParcel ?? 0,
-                    PhotoPath = $"{_appSettings.WebSiteUrl}{item.DefaultPhotoPath}",
                     Label = item.Label,
                     Price = (float)(item.Price ?? 0),
                     Quantity = item.Quantity,
                     IsModifiedPriceOrBox = item.IsModifiedPriceOrBox
-                });
+                };
+
+                // Construct correct Photo URL
+                string baseUrl = _appSettings.WebSiteUrl;
+                if (!string.IsNullOrEmpty(baseUrl) && !baseUrl.StartsWith("http")) baseUrl = "https://" + baseUrl;
+                if (!string.IsNullOrEmpty(baseUrl) && !baseUrl.EndsWith("/")) baseUrl += "/";
+
+                string photoPath = item.DefaultPhotoPath ?? "";
+                if (photoPath.StartsWith("/")) photoPath = photoPath.Substring(1);
+
+                receiptProduct.PhotoPath = photoPath.Contains("http") ? photoPath : baseUrl + photoPath;
+                receipt.ProductList.Add(receiptProduct);
+
+                // Download image in background task
+                if (!string.IsNullOrEmpty(receiptProduct.PhotoPath))
+                {
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            receiptProduct.PhotoData = await _httpClient.GetByteArrayAsync(receiptProduct.PhotoPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning($"Failed to download image from {receiptProduct.PhotoPath}: {ex.Message}");
+                        }
+                    }));
+                }
 
                 receipt.TotalPriceWithoutTax += (float)((item.QuantityPerBox ?? 0) * (item.Price ?? 0) * item.Quantity);
             }
+
+            await Task.WhenAll(tasks);
 
             if (tax != null && float.TryParse(tax.Value, out var taxValue))
             {

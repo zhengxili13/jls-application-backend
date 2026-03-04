@@ -58,17 +58,39 @@ public class JlsDbContext(DbContextOptions<JlsDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("dbo");
         modelBuilder.Entity<BestClientWidget>().HasNoKey();
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            modelBuilder.Entity(entityType.ClrType).ToTable(tb => tb.UseSqlOutputClause(false));
-        }
 
         base.OnModelCreating(modelBuilder);
+
+        // Identity explicitly maps table & column names to CamelCase, overriding NamingConventions.
+        // We must manually lower-case all tables and columns to match PostgreSQL's unquoted lowercase rule.
+        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        {
+            var currentTableName = entity.GetTableName();
+            if (!string.IsNullOrEmpty(currentTableName))
+                entity.SetTableName(currentTableName.ToLower());
+
+            foreach (var property in entity.GetProperties())
+            {
+                var currentColumnName = property.GetColumnBaseName();
+                if (!string.IsNullOrEmpty(currentColumnName))
+                    property.SetColumnName(currentColumnName.ToLower());
+                
+                if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(
+                        new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                            v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                            v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Local)
+                        ));
+                }
+            }
+        }
     }
 
     // sql function 
-    [DbFunction("fn_CheckNewProduct", "dbo")]
+    [DbFunction("fn_checknewproduct", "dbo")]
     public bool CheckNewProduct(long ProductId)
     {
         throw new NotSupportedException();

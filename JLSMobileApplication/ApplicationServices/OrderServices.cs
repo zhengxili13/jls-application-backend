@@ -61,7 +61,7 @@ public class OrderServices(IOrderRepository order,
 
     private Task SendEmail(long orderId)
     {
-        return !env.IsDevelopment() ? sendEmailAndMessageService.CreateOrUpdateOrderAsync(orderId, "CreateNewOrder") : Task.CompletedTask;
+        return sendEmailAndMessageService.CreateOrUpdateOrderAsync(orderId, "CreateNewOrder");
     }
 
     private static List<OrderProductViewModelMobile> MapProducts(List<OrderProductViewModelMobile> references, List<ProductListData> productList)

@@ -33,18 +33,23 @@ public class AnalyticsRepository : IAnalyticsReporsitory
                 Month = g.Key.Month,
                 Sum = g.Sum(p => p.TotalPrice)
             }).ToListAsync();
-        var userList = await (from u in db.Users
+        var users = await (from u in db.Users
             join ur in db.UserRoles on u.Id equals ur.UserId
             where adminRoleIds.Contains(ur.RoleId)
             select new
             {
-                UserId = u.Id,
-                Performance = from s in salesPerformance
-                    where s.UserId == u.Id
-                    select s,
-                Username = u.UserName,
+                u.Id,
+                u.UserName,
                 u.CreatedOn
-            }).ToListAsync<dynamic>();
+            }).ToListAsync();
+
+        var userList = users.Select(u => (dynamic)new
+        {
+            UserId = u.Id,
+            Performance = salesPerformance.Where(s => s.UserId == u.Id).ToList(),
+            Username = u.UserName,
+            u.CreatedOn
+        }).ToList();
 
         return userList;
     }
@@ -194,13 +199,13 @@ public class AnalyticsRepository : IAnalyticsReporsitory
                     select new
                     {
                         ProductCommentCount = (from pc in db.ProductComment
-                            where pc.CreatedOn.Value.Year == int.Parse(riYear.Value) &&
-                                  pc.CreatedOn.Value.Month == int.Parse(riMonth.Value)
+                            where pc.CreatedOn.Value.Year.ToString() == riYear.Value &&
+                                  pc.CreatedOn.Value.Month.ToString() == riMonth.Value
                             select pc.Id).Count(),
                         Month = riMonth.Value,
                         Order = (from o in db.OrderInfo
-                            where o.CreatedOn.Value.Year == int.Parse(riYear.Value) &&
-                                  o.CreatedOn.Value.Month == int.Parse(riMonth.Value)
+                            where o.CreatedOn.Value.Year.ToString() == riYear.Value &&
+                                  o.CreatedOn.Value.Month.ToString() == riMonth.Value
                             select new
                             {
                                 o.Id,

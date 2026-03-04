@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 using JLSApplicationBackend.HtmlToPdf;
 using JLSApplicationBackend.Services;
 using JLSDataModel.Models.Adress;
 using NUnit.Framework;
 using QuestPDF.Fluent;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace JLSApplicationBackend.Tests;
 
@@ -12,8 +16,19 @@ namespace JLSApplicationBackend.Tests;
 public class PdfGenerationTest
 {
     [Test]
-    public void GenerateSamplePdf_ForManualVerification()
+    public async Task GenerateSamplePdf_ForManualVerification()
     {
+        using var httpClient = new HttpClient();
+        
+        async Task<byte[]> DownloadImage(string url)
+        {
+            try { return await httpClient.GetByteArrayAsync(url); }
+            catch { return null; }
+        }
+
+        var photo1 = await DownloadImage("https://pub-a2183ebbb6d14f539b73e652691d11a6.r2.dev/images/0/160109_1.jpg");
+        var photo2 = await DownloadImage("https://pub-a2183ebbb6d14f539b73e652691d11a6.r2.dev/images/0/008.jpg");
+
         // QuestPDF License - Required for execution
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -40,7 +55,8 @@ public class PdfGenerationTest
                     Price = 1.50f,
                     Quantity = 10,
                     Colissage = 20,
-                    IsModifiedPriceOrBox = true // Should trigger RED row
+                    IsModifiedPriceOrBox = true,
+                    PhotoData = photo1
                 },
                 new ReceiptProductList
                 {
@@ -49,7 +65,8 @@ public class PdfGenerationTest
                     Price = 2.00f,
                     Quantity = 5,
                     Colissage = 10,
-                    QuantityPerParcel = 5 // Should trigger RED colissage text
+                    QuantityPerParcel = 5,
+                    PhotoData = photo2
                 }
             },
             FacturationAddress = new Adress { FirstLineAddress = "10 Main St", City = "Paris", ZipCode = "75001", Country = "France", ContactTelephone = "0102030405" },
@@ -59,16 +76,14 @@ public class PdfGenerationTest
         var document = new ReceiptDocument(model, "Verification Invoice");
 
         // Act
-        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        var fileName = System.IO.Path.Combine(desktopPath, "QuestPDF_Verification_Sample.pdf");
+        var uniqueId = Guid.NewGuid().ToString("n");
+        var fileName = $@"C:\Dev\jls apps\jls-application-backend\QuestPDF_Verification_{uniqueId}.pdf";
         
-        // If desktop is not accessible or doesn't exist (e.g. in some server environments), use project root
-        if (!System.IO.Directory.Exists(desktopPath))
-        {
-            fileName = "QuestPDF_Verification_Sample.pdf";
-        }
-
         document.GeneratePdf(fileName);
+        
+        // Also generate an image for visual verification
+        var imagePath = $@"C:\Dev\jls apps\jls-application-backend\QuestPDF_Verification_{uniqueId}.png";
+        File.WriteAllBytes(imagePath, document.GenerateImages().First());
 
         // Assert
         Assert.That(System.IO.File.Exists(fileName), Is.True);

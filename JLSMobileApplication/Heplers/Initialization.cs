@@ -38,7 +38,7 @@ public class Initialization
 
                 u.Validity = true;
                 var result = userManager.CreateAsync(u, encryptedPassword).Result;
-                if (result.Succeeded) userManager.AddToRoleAsync(u, "SuperAdmin").Wait();
+                if (result.Succeeded)   userManager.AddToRoleAsync(u, "SuperAdmin").Wait();
             }
         }
     }

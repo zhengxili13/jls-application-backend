@@ -54,7 +54,7 @@ public class ExportService_PdfDataTests
     }
 
     [Test]
-    public void BuildReceiptInfo_ShouldMapBasicOrderInfoCorrectly()
+    public async Task BuildReceiptInfo_ShouldMapBasicOrderInfoCorrectly()
     {
         // Arrange
         var orderId = 12345L;
@@ -72,7 +72,7 @@ public class ExportService_PdfDataTests
         };
 
         // Act
-        var result = _exportService.BuildReceiptInfo(dto);
+        var result = await _exportService.BuildReceiptInfo(dto);
 
         // Assert
         Assert.Multiple(() =>
@@ -84,7 +84,7 @@ public class ExportService_PdfDataTests
     }
 
     [Test]
-    public void BuildReceiptInfo_ShouldMapCustomerInfoCorrectly()
+    public async Task BuildReceiptInfo_ShouldMapCustomerInfoCorrectly()
     {
         // Arrange
         var dto = new OrderFullDetailDto
@@ -99,7 +99,7 @@ public class ExportService_PdfDataTests
         };
 
         // Act
-        var result = _exportService.BuildReceiptInfo(dto);
+        var result = await _exportService.BuildReceiptInfo(dto);
 
         // Assert
         Assert.Multiple(() =>
@@ -112,7 +112,7 @@ public class ExportService_PdfDataTests
     }
 
     [Test]
-    public void BuildReceiptInfo_ShouldCalculateTotalsAndTaxCorrectly()
+    public async Task BuildReceiptInfo_ShouldCalculateTotalsAndTaxCorrectly()
     {
         // Arrange
         var dto = new OrderFullDetailDto
@@ -142,7 +142,7 @@ public class ExportService_PdfDataTests
         };
 
         // Act
-        var result = _exportService.BuildReceiptInfo(dto);
+        var result = await _exportService.BuildReceiptInfo(dto);
 
         // Assert
         // TotalWithoutTax = (2 * 10 * 5.50) + (1 * 5 * 10.00) = 110 + 50 = 160
@@ -158,7 +158,7 @@ public class ExportService_PdfDataTests
     }
 
     [Test]
-    public void BuildReceiptInfo_ShouldMapAddressesCorrectly()
+    public async Task BuildReceiptInfo_ShouldMapAddressesCorrectly()
     {
         // Arrange
         var factAddr = new JLSDataModel.Models.Adress.Adress { City = "Paris", FirstLineAddress = "10 Rue A" };
@@ -171,7 +171,7 @@ public class ExportService_PdfDataTests
         };
 
         // Act
-        var result = _exportService.BuildReceiptInfo(dto);
+        var result = await _exportService.BuildReceiptInfo(dto);
 
         // Assert
         Assert.Multiple(() =>
@@ -182,7 +182,7 @@ public class ExportService_PdfDataTests
     }
 
     [Test]
-    public void BuildReceiptInfo_ShouldHandleClientRemark()
+    public async Task BuildReceiptInfo_ShouldHandleClientRemark()
     {
         // Arrange
         var dto = new OrderFullDetailDto
@@ -191,7 +191,7 @@ public class ExportService_PdfDataTests
         };
 
         // Act
-        var result = _exportService.BuildReceiptInfo(dto);
+        var result = await _exportService.BuildReceiptInfo(dto);
 
         // Assert
         Assert.That(result.ClientRemark, Is.EqualTo("Handle with care"));

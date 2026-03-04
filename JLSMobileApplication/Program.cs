@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using AutoMapper;
 using Hangfire;
+using Hangfire.PostgreSql;
 using JLSApplicationBackend.ApplicationServices;
 using JLSApplicationBackend.Constants;
 using JLSApplicationBackend.Heplers;
@@ -37,6 +38,8 @@ try
 {
     Log.Information("Application Starting...");
 
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration));
@@ -47,7 +50,10 @@ try
 
     services.AddAutoMapper();
     services.AddRazorPages();
-    services.AddControllersWithViews().AddNewtonsoftJson(options =>
+    services.AddControllersWithViews(options =>
+    {
+        options.SuppressAsyncSuffixInActionNames = false;
+    }).AddNewtonsoftJson(options =>
     {
         options.SerializerSettings.DateFormatString = "yyyy-MM-dd HH:mm:ss";
         options.SerializerSettings.ContractResolver = new DefaultContractResolver();
@@ -64,11 +70,13 @@ try
     });
 
     services.AddDbContext<JlsDbContext>(options =>
-        options.UseSqlServer(configuration.GetConnectionString("DefaultConnectionString")));
+        options.UseNpgsql(configuration.GetConnectionString("PostgresConnection"))
+               .UseLowerCaseNamingConvention());
 
     services.AddIdentityCore<User>()
         .AddRoles<IdentityRole<int>>()
-        .AddEntityFrameworkStores<JlsDbContext>();
+        .AddEntityFrameworkStores<JlsDbContext>()
+        .AddDefaultTokenProviders();
 
     var appSettingsSection = configuration.GetSection("AppSettings");
     services.Configure<AppSettings>(appSettingsSection);
@@ -138,7 +146,7 @@ try
     });
 
     services.AddSignalR();
-    services.AddHangfire(x => x.UseSqlServerStorage(configuration.GetConnectionString("DefaultConnectionString")));
+    services.AddHangfire(x => x.UsePostgreSqlStorage(configuration.GetConnectionString("PostgresConnection")));
     services.AddHttpContextAccessor();
     services.AddScoped<IUserRepository, UserRepository>();
     services.AddScoped<IProductRepository, ProductRepository>();
@@ -188,65 +196,12 @@ try
 
     app.UseMiddleware<VisitorCounterMiddleware>();
 
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Angular", "Admin/dist")),
-        RequestPath = "/admin"
-    });
 
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider =
-            new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Angular", "Website/dist"))
-    });
-
+    app.MapControllers();
     app.MapControllers();
     app.MapRazorPages();
     app.MapControllerRoute("default", "{controller}/{action=Index}/{id?}");
     app.MapHub<MessageHub>("/MessageHub");
-
-    app.Map("/admin", client =>
-    {
-        if (app.Environment.IsDevelopment() == false)
-        {
-            var clientApp2Dist = new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(
-                    Path.Combine(
-                        Directory.GetCurrentDirectory(),
-                        @"Angular/Admin/dist"
-                    )
-                )
-            };
-            client.UseSpaStaticFiles(clientApp2Dist);
-            client.UseSpa(spa =>
-            {
-                spa.Options.StartupTimeout = new TimeSpan(0, 5, 0);
-                spa.Options.SourcePath = "Angular/Admin";
-                spa.Options.DefaultPageStaticFileOptions = clientApp2Dist;
-            });
-        }
-    });
-
-    if (app.Environment.IsDevelopment() == false)
-    {
-        var clientApp2Dist = new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(
-                Path.Combine(
-                    Directory.GetCurrentDirectory(),
-                    @"Angular/Website/dist"
-                )
-            )
-        };
-        app.UseSpaStaticFiles(clientApp2Dist);
-        app.UseSpa(spa =>
-        {
-            spa.Options.StartupTimeout = new TimeSpan(0, 5, 0);
-            spa.Options.SourcePath = "Angular/Website";
-            spa.Options.DefaultPageStaticFileOptions = clientApp2Dist;
-        });
-    }
 
     Log.Information("Application started.");
     app.Run();

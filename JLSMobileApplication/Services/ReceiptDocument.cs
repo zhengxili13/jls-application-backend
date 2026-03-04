@@ -102,29 +102,29 @@ public class ReceiptDocument : IDocument
                 table.ColumnsDefinition(columns =>
                 {
                     columns.ConstantColumn(50); // Photo
-                    columns.RelativeColumn();   // Reference
-                    columns.RelativeColumn(2); // Name
-                    columns.RelativeColumn();   // Colisage
-                    columns.RelativeColumn();   // Colis
-                    columns.RelativeColumn();   // Qty
-                    columns.RelativeColumn();   // P.U. HT
-                    columns.RelativeColumn();   // Total HT
+                    columns.RelativeColumn(3);  // Reference
+                    columns.RelativeColumn(6);  // Name
+                    columns.RelativeColumn(3);  // Colissage
+                    columns.RelativeColumn(3);  // Nombre de colis
+                    columns.RelativeColumn(3);  // QT CDEE
+                    columns.RelativeColumn(3);  // P.U. HT
+                    columns.RelativeColumn(3);  // Montant HT
                 });
 
                 table.Header(header =>
                 {
-                    header.Cell().Element(CellStyle).Text("Photo");
-                    header.Cell().Element(CellStyle).Text("Référence");
-                    header.Cell().Element(CellStyle).Text("Nom de produit");
-                    header.Cell().Element(CellStyle).Text("Colisage");
-                    header.Cell().Element(CellStyle).Text("Nombre de colis");
-                    header.Cell().Element(CellStyle).Text("QT CDEE");
-                    header.Cell().Element(CellStyle).Text("P.U. HT");
-                    header.Cell().Element(CellStyle).Text("Montant HT");
+                    header.Cell().Element(HeaderStyle).Text("Photo");
+                    header.Cell().Element(HeaderStyle).Text("Référence");
+                    header.Cell().Element(HeaderStyle).Text("Nom de produit");
+                    header.Cell().Element(HeaderStyle).Text("Colisage");
+                    header.Cell().Element(HeaderStyle).Text("Nombre de colis");
+                    header.Cell().Element(HeaderStyle).Text("QT CDEE");
+                    header.Cell().Element(HeaderStyle).Text("P.U. HT");
+                    header.Cell().Element(HeaderStyle).Text("Montant HT");
 
-                    static IContainer CellStyle(IContainer container)
+                    static IContainer HeaderStyle(IContainer container)
                     {
-                        return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black);
+                        return container.DefaultTextStyle(x => x.SemiBold()).PaddingVertical(5).BorderBottom(1).BorderColor(Colors.Black).AlignCenter();
                     }
                 });
 
@@ -132,60 +132,65 @@ public class ReceiptDocument : IDocument
                 {
                     var totalQty = item.Quantity * item.Colissage;
                     var itemTotalPrice = (item.Price * item.Quantity * item.Colissage).ToString("0.00");
-                    
-                    var isModified = item.IsModifiedPriceOrBox == true;
 
                     // Photo
-                    table.Cell().PaddingBottom(2).MaxHeight(40).AlignCenter().Element(e => {
-                        if (!string.IsNullOrEmpty(item.PhotoPath))
+                    table.Cell().Element(ContentStyle).MaxHeight(40).Element(e => {
+                        if (item.PhotoData != null)
                         {
-                            try{ e.Image(item.PhotoPath); } catch { e.Text("N/A"); }
+                            e.Image(item.PhotoData).FitArea();
+                        }
+                        else
+                        {
+                             e.AlignCenter().AlignMiddle().Text("N/A").FontSize(8);
                         }
                         return e;
                     });
                     
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Text(item.Code);
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Text(item.Label);
+                    table.Cell().Element(ContentStyle).AlignCenter().Text(item.Code);
+                    table.Cell().Element(ContentStyle).PaddingHorizontal(2).Text(item.Label);
                     
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Row(r => {
+                    table.Cell().Element(ContentStyle).AlignCenter().Row(r => {
                         r.RelativeItem().Text(x => {
-                            if (item.QuantityPerParcel != null) x.Span(item.Colissage.ToString()).FontColor(Colors.Red.Medium);
-                            else x.Span(item.Colissage.ToString());
-                            
+                            x.Span(item.Colissage.ToString());
                             if (item.QuantityPerParcel != null) x.Span($" ({item.QuantityPerParcel})");
                         });
                     });
                     
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Text(item.Quantity.ToString());
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Text(totalQty.ToString());
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Text($"{item.Price} €");
-                    table.Cell().Element(c => ContentStyle(c, isModified)).Text($"{itemTotalPrice} €");
+                    table.Cell().Element(ContentStyle).AlignCenter().Text(item.Quantity.ToString());
+                    table.Cell().Element(ContentStyle).AlignCenter().Text(totalQty.ToString());
+                    table.Cell().Element(ContentStyle).AlignCenter().Text($"{item.Price} €");
+                    table.Cell().Element(ContentStyle).AlignCenter().Text($"{itemTotalPrice} €");
                 }
 
-                static IContainer ContentStyle(IContainer container, bool isRed)
+                static IContainer ContentStyle(IContainer container)
                 {
-                    var content = container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).PaddingVertical(5);
-                    return isRed ? content.DefaultTextStyle(x => x.FontColor(Colors.Red.Medium)) : content;
+                    return container.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).PaddingVertical(3).AlignMiddle();
                 }
             });
 
             // Summary
-            column.Item().AlignRight().PaddingTop(10).Table(table =>
-            {
-                table.ColumnsDefinition(columns =>
-                {
-                    columns.ConstantColumn(150);
-                    columns.ConstantColumn(100);
+            column.Item().PaddingTop(10).Row(row => {
+                row.RelativeItem(); // Push to right
+                row.ConstantItem(200).Column(c => {
+                    c.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(120);
+                            columns.ConstantColumn(80);
+                        });
+
+                        table.Cell().Text("Total HT").SemiBold();
+                        table.Cell().AlignRight().Text($"{_model.TotalPriceWithoutTax:0.00} €");
+
+                        table.Cell().Text($"Tx TVA ({_model.TaxRate}%)").SemiBold();
+                        table.Cell().AlignRight().Text($"{_model.Tax:0.00} €");
+
+                        table.Cell().PaddingTop(5).Text("TOTAL A PAYER").FontSize(12).ExtraBold();
+                        table.Cell().PaddingTop(5).AlignRight().Text($"{_model.TotalPrice:0.00} €").FontSize(12).ExtraBold();
+                    });
                 });
-
-                table.Cell().Text("Total HT").SemiBold();
-                table.Cell().AlignRight().Text($"{_model.TotalPriceWithoutTax:0.00} €");
-
-                table.Cell().Text($"Tx TVA ({_model.TaxRate}%)").SemiBold();
-                table.Cell().AlignRight().Text($"{_model.Tax:0.00} €");
-
-                table.Cell().PaddingTop(5).Text("TOTAL A PAYER").FontSize(12).ExtraBold();
-                table.Cell().PaddingTop(5).AlignRight().Text($"{_model.TotalPrice:0.00} €").FontSize(12).ExtraBold();
+                row.ConstantItem(40); // Margin from the very edge
             });
 
             // Addresses
